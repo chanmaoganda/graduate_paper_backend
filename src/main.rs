@@ -5,17 +5,26 @@ mod services;
 
 use actix_web::{web, App, HttpServer};
 
+fn get_addr_port<'a>() -> (&'a str, u16) {
+    let address = env!("ADDRESS");
+    let port = env!("PORT").parse().unwrap();
+    (address, port)
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let pool = postgres::build_pool().await.unwrap();
     env_logger::init();
     log::debug!("Starting server");
+
+    let (address, port) = get_addr_port();
+    let pool = postgres::build_pool().await.unwrap();
+    
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .configure(api::configure_apis)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((address, port))?
     .run()
     .await
 }
