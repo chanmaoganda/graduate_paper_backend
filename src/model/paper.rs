@@ -16,6 +16,11 @@ impl Paper {
         let student_id: String = row.get(1);
         let teacher_id: String = row.get(2);
         let title: String = row.get(3);
-        Self { base_id, student_id, teacher_id, title }
+        Self {
+            base_id,
+            student_id,
+            teacher_id,
+            title,
+        }
     }
 }

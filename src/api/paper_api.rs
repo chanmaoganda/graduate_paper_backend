@@ -3,15 +3,13 @@ use deadpool_postgres::Pool;
 
 use crate::model::Paper;
 
-const PAPER_TABLE: &str = env!("PAPER_TABLE");
+use super::{LIST_ENDPOINT, PAPER_TABLE, QUERY_ID_ENDPOINT};
 
 pub fn get_paper_apis() -> actix_web::Scope {
-    let query_id_api = web::resource("/query/{id}").route(web::get().to(get_paper_by_id));
-    let list_api = web::resource("/list").route(web::get().to(list_all_paper));
+    let query_id_api = web::resource(QUERY_ID_ENDPOINT).route(web::get().to(get_paper_by_id));
+    let list_api = web::resource(LIST_ENDPOINT).route(web::get().to(list_all_paper));
 
-    web::scope("/paper")
-       .service(query_id_api)
-       .service(list_api)
+    web::scope("/paper").service(query_id_api).service(list_api)
 }
 
 async fn get_paper_by_id(student_id: web::Path<u32>, pool: web::Data<Pool>) -> impl Responder {
@@ -19,7 +17,10 @@ async fn get_paper_by_id(student_id: web::Path<u32>, pool: web::Data<Pool>) -> i
 
     log::debug!("get paper by student_id");
     let student_id = student_id.into_inner();
-    let sql = format!("SELECT title FROM {PAPER_TABLE} WHERE student_id = '{}';", student_id);
+    let sql = format!(
+        "SELECT title FROM {PAPER_TABLE} WHERE student_id = '{}';",
+        student_id
+    );
     let stmt = client.prepare(sql.as_str()).await.unwrap();
     match client.query_one(&stmt, &[]).await {
         Ok(row) => {

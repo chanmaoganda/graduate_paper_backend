@@ -3,11 +3,11 @@ use deadpool_postgres::Pool;
 
 use crate::model::Student;
 
-const STUDENT_TABLE: &str = env!("STUDENT_TABLE");
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, STUDENT_TABLE};
 
 pub fn get_student_apis() -> actix_web::Scope {
-    let list_api = web::resource("/list").route(web::get().to(list_all_students));
-    let query_id_api = web::resource("/query/{id}").route(web::get().to(get_student_by_id));
+    let query_id_api = web::resource(QUERY_ID_ENDPOINT).route(web::get().to(get_student_by_id));
+    let list_api = web::resource(LIST_ENDPOINT).route(web::get().to(list_all_students));
 
     web::scope("/student")
         .service(list_api)
@@ -19,7 +19,10 @@ async fn get_student_by_id(student_id: web::Path<u32>, pool: web::Data<Pool>) ->
 
     log::debug!("get student by student_id");
     let student_id = student_id.into_inner();
-    let sql = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = '{}';", student_id);
+    let sql = format!(
+        "SELECT name FROM {STUDENT_TABLE} WHERE student_id = '{}';",
+        student_id
+    );
     let stmt = client.prepare(sql.as_str()).await.unwrap();
     match client.query_one(&stmt, &[]).await {
         Ok(row) => {
