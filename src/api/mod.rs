@@ -2,6 +2,7 @@ mod full_paper_api;
 mod paper_api;
 mod student_api;
 mod teacher_api;
+mod login;
 
 use actix_web::web;
 
