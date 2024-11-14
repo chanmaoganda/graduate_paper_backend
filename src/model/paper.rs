@@ -3,17 +3,19 @@ use tokio_postgres::Row;
 
 #[derive(Serialize, Deserialize)]
 pub struct Paper {
-    pub id: i32,
+    pub base_id: i32,
     pub student_id: String,
+    pub teacher_id: String,
     pub title: String,
     // TODO: status???
 }
 
 impl Paper {
     pub fn from_row(row: Row) -> Self {
-        let id: i32 = row.get(0);
+        let base_id: i32 = row.get(0);
         let student_id: String = row.get(1);
-        let title: String = row.get(2);
-        Self { id, student_id, title }
+        let teacher_id: String = row.get(2);
+        let title: String = row.get(3);
+        Self { base_id, student_id, teacher_id, title }
     }
 }
