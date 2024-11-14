@@ -27,12 +27,12 @@ impl PgUser {
 pub async fn build_pool() -> anyhow::Result<Pool> {
     let mut pg_config = Config::new();
     let user = PgUser::from_env();
-    
+
     pg_config.user(user.username);
     pg_config.password(user.password);
     pg_config.host(user.host);
     pg_config.dbname(user.database);
-    
+
     let mgr_config = ManagerConfig {
         recycling_method: RecyclingMethod::Fast,
     };

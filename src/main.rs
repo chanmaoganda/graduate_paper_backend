@@ -1,6 +1,7 @@
 mod api;
-mod services;
+mod model;
 mod postgres;
+mod services;
 
 use actix_web::{web, App, HttpServer};
 
@@ -11,8 +12,8 @@ async fn main() -> std::io::Result<()> {
     log::debug!("Starting server");
     HttpServer::new(move || {
         App::new()
-        .app_data(web::Data::new(pool.clone()))
-        .configure(api::configure_apis)
+            .app_data(web::Data::new(pool.clone()))
+            .configure(api::configure_apis)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
