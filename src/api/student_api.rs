@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT};
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
 pub fn get_student_apis() -> actix_web::Scope {
     let query_id_api =
@@ -12,10 +12,14 @@ pub fn get_student_apis() -> actix_web::Scope {
     let register_api =
         web::resource(REGISTER_ENDPOINT).route(web::post().to(post_services::register_student));
 
+    let unregister_api =
+        web::resource(UNREGISTER_ENDPOINT).route(web::post().to(post_services::unregister_student));
+
     web::scope("/student")
         .service(query_id_api)
         .service(list_api)
         .service(register_api)
+        .service(unregister_api)
 }
 
 mod get_services {
@@ -41,7 +45,7 @@ mod get_services {
         match client.query_one(&stmt, &[]).await {
             Ok(row) => {
                 let name: String = row.get(0);
-                HttpResponse::Ok().json(name)
+                HttpResponse::Ok().body(name)
             }
             Err(_) => HttpResponse::NotFound().body("Student not found"),
         }
@@ -78,7 +82,7 @@ mod post_services {
     ) -> impl Responder {
         let client = pool.get().await.unwrap();
 
-        log::debug!("create student");
+        log::debug!("register student");
 
         if !student.check_valid(&regex) {
             return HttpResponse::BadRequest().body("Invalid email or password");
@@ -104,8 +108,32 @@ mod post_services {
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
-            Ok(_) => HttpResponse::Ok().json("Student created"),
+            Ok(_) => HttpResponse::Ok().body("Student created"),
             Err(_) => HttpResponse::InternalServerError().body("Error creating student"),
+        }
+    }
+
+    pub async fn unregister_student(
+        student: web::Query<Student>,
+        pool: web::Data<Pool>,
+    ) -> impl Responder {
+        let client = pool.get().await.unwrap();
+
+        log::debug!("unregister student");
+
+        let Student {
+            student_id, name, ..
+        } = student.into_inner();
+
+        let sql = format!(
+            "DELETE FROM {STUDENT_TABLE} WHERE student_id = '{}' AND name = '{}';",
+            student_id, name
+        );
+
+        let stmt = client.prepare(sql.as_str()).await.unwrap();
+        match client.execute(&stmt, &[]).await {
+            Ok(_) => HttpResponse::Ok().body("Student unregistered"),
+            Err(_) => HttpResponse::InternalServerError().body("Error unregistering student"),
         }
     }
 }

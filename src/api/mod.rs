@@ -9,6 +9,7 @@ use actix_web::web;
 const QUERY_ID_ENDPOINT: &str = "/query";
 const LIST_ENDPOINT: &str = "/list";
 const REGISTER_ENDPOINT: &str = "/register";
+const UNREGISTER_ENDPOINT: &str = "/unregister";
 
 const PAPER_TABLE: &str = env!("PAPER_TABLE");
 const STUDENT_TABLE: &str = env!("STUDENT_TABLE");
@@ -32,44 +33,11 @@ pub fn configure_apis(cfg: &mut web::ServiceConfig) {
 
 #[cfg(test)]
 mod api_tests {
+    use reqwest::ClientBuilder;
     use serde::Serialize;
     use serde_json::Value;
 
     use crate::model::{Student, Teacher};
-
-    #[tokio::test]
-    async fn query_test() {
-        let base_ip = addr();
-        let query_url = format!("{}student/query?id={}", base_ip, "3022244109");
-        let response = reqwest::get(query_url).await.unwrap();
-        assert_eq!(response.status(), 200);
-    }
-
-    #[tokio::test]
-    async fn list_test() {
-        let base_ip = addr();
-        let list_url = format!("{}/api/student/list", base_ip);
-
-        let response = reqwest::get(list_url).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let list_url = format!("{}/api/teacher/list", base_ip);
-        let response = reqwest::get(list_url).await.unwrap();
-        assert_eq!(response.status(), 200);
-    }
-
-    #[tokio::test]
-    async fn login_test() {
-        let base_ip = addr();
-        let student_url = format!("{}/login/student?id={}", base_ip, "3022244109");
-        let teacher_url = format!("{}/login/teacher?id={}", base_ip, "1111111111");
-
-        let response = reqwest::get(student_url).await.unwrap();
-        assert_eq!(response.status(), 200);
-
-        let response = reqwest::get(teacher_url).await.unwrap();
-        assert_eq!(response.status(), 200);
-    }
 
     #[tokio::test]
     async fn student_register_test() {
@@ -108,11 +76,11 @@ mod api_tests {
 
         let queries = valid_students
             .into_iter()
-            .map(IntoQueryString::into_query_string)
+            .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        let client = reqwest::Client::new();
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
         for query_url in queries {
             let response = client.post(query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
@@ -120,7 +88,7 @@ mod api_tests {
 
         let queries = invalid_students
             .into_iter()
-            .map(IntoQueryString::into_query_string)
+            .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
@@ -167,11 +135,12 @@ mod api_tests {
 
         let queries = valid_teachers
             .into_iter()
-            .map(IntoQueryString::into_query_string)
+            .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        let client = reqwest::Client::new();
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
         for query_url in queries {
             let response = client.post(query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
@@ -179,13 +148,141 @@ mod api_tests {
 
         let queries = invalid_teachers
             .into_iter()
-            .map(IntoQueryString::into_query_string)
+            .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
         for query_url in queries {
             let response = client.post(query_url).send().await.unwrap();
             assert_eq!(response.status(), 400);
+        }
+    }
+
+    #[tokio::test]
+    async fn query_test() {
+        let base_ip = addr();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        let student_ids = vec!["3022244109", "3022244110", "3022244111"];
+
+        for student_id in student_ids {
+            let query_url = format!("{}/api/student/query?id={}", base_ip, student_id);
+            let response = client.get(query_url).send().await.unwrap();
+
+            assert_eq!(response.status(), 200);
+        }
+
+        let teacher_ids = vec!["0000000001", "0000000002", "0000000003"];
+
+        for teacher_id in teacher_ids {
+            let query_url = format!("{}/api/teacher/query?id={}", base_ip, teacher_id);
+            let response = client.get(query_url).send().await.unwrap();
+
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn list_test() {
+        let base_ip = addr();
+        let list_url = format!("{}/api/student/list", base_ip);
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        let response = client.get(list_url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+
+        let list_url = format!("{}/api/teacher/list", base_ip);
+        let response = client.get(list_url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn login_test() {
+        let base_ip = addr();
+        let student_url = format!("{}/login/student?id={}", base_ip, "3022244109");
+        let teacher_url = format!("{}/login/teacher?id={}", base_ip, "0000000001");
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        let response = client.get(student_url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+
+        let response = client.get(teacher_url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn student_unregister_test() {
+        let base_ip = addr();
+
+        let valid_students = vec![
+            Student {
+                name: "avania".into(),
+                student_id: "3022244109".into(),
+                email: Some("avania@gmail.com".into()),
+            },
+            Student {
+                name: "john".into(),
+                student_id: "3022244110".into(),
+                email: Some("john@gmail.com".into()),
+            },
+            Student {
+                name: "jane".into(),
+                student_id: "3022244111".into(),
+                email: Some("jane@gmail.com".into()),
+            },
+        ];
+
+        let queries = valid_students
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/student/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        for query_url in queries {
+            dbg!(&query_url);
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn teacher_unregister_test() {
+        let base_ip = addr();
+
+        let valid_teachers = vec![
+            Teacher {
+                name: "junjie chen".into(),
+                teacher_id: "0000000001".into(),
+                email: Some("junjiechen@tju.edu.cn".into()),
+            },
+            Teacher {
+                name: "zheng wang".into(),
+                teacher_id: "0000000002".into(),
+                email: Some("wangzheng@tju.edu.cn".into()),
+            },
+            Teacher {
+                name: "jenifer".into(),
+                teacher_id: "0000000003".into(),
+                email: Some("jenifer@tju.edu.cn".into()),
+            },
+        ];
+
+        let queries = valid_teachers
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/teacher/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        for query_url in queries {
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
         }
     }
 
@@ -196,11 +293,13 @@ mod api_tests {
     }
 
     pub trait IntoQueryString: Serialize + Sized {
-        fn into_query_string(self) -> String;
+        fn into_full_query_string(self) -> String;
+
+        fn into_id_name_query_string(self) -> String;
     }
 
     impl<T: Serialize> IntoQueryString for T {
-        fn into_query_string(self) -> String {
+        fn into_full_query_string(self) -> String {
             let serialized = serde_json::to_value(self).unwrap();
 
             let mut query_pairs = Vec::new();
@@ -226,6 +325,27 @@ mod api_tests {
                         } // Handle other types if necessary
                     };
                     query_pairs.push(result)
+                }
+            }
+            query_pairs.join("&")
+        }
+
+        fn into_id_name_query_string(self) -> String {
+            let serialized = serde_json::to_value(self).unwrap();
+
+            let mut query_pairs = Vec::new();
+            if let Value::Object(values) = serialized {
+                for (key, value) in values {
+                    match value {
+                        Value::String(s) => {
+                            if key.contains("id") || key.contains("name") {
+                                query_pairs.push(format!("{}={}", key, s));
+                            }
+                        }
+                        _ => {
+                            continue;
+                        }
+                    }
                 }
             }
             query_pairs.join("&")
