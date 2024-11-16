@@ -34,7 +34,7 @@ pub fn configure_apis(cfg: &mut web::ServiceConfig) {
 }
 
 pub trait IntoQueryString: Serialize + Sized {
-    fn into_query_string(self) -> String ;
+    fn into_query_string(self) -> String;
 }
 
 impl<T: Serialize> IntoQueryString for T {

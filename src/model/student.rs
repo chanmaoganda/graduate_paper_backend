@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Student {
     pub name: String,
     pub student_id: String,

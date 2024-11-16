@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FullPaperData {
     pub paper_base_id: Option<i32>,
     pub student_name: String,
