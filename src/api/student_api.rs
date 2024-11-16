@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, STUDENT_TABLE, REGISTER_ENDPOINT};
+use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT};
 
 pub fn get_student_apis() -> actix_web::Scope {
     let query_id_api = web::resource(QUERY_ID_ENDPOINT)
@@ -9,30 +9,23 @@ pub fn get_student_apis() -> actix_web::Scope {
     let list_api = web::resource(LIST_ENDPOINT)
         .route(web::get().to(get_services::list_all_students));
     
-    let register_student_api = web::resource(REGISTER_ENDPOINT)
+    let register_api = web::resource(REGISTER_ENDPOINT)
         .route(web::post().to(post_services::register_student));
 
     web::scope("/student")
         .service(query_id_api)
         .service(list_api)
-        .service(register_student_api)
+        .service(register_api)
 }
 
 mod get_services {
     use actix_web::{web, Responder, HttpResponse};
     use deadpool_postgres::Pool;
-    use serde::{Deserialize, Serialize};
-    use crate::model::Student;
+    use crate::model::{QueryById, Student};
 
-    use super::super::STUDENT_TABLE;
+    use crate::api::STUDENT_TABLE;
 
-    #[derive(Serialize, Deserialize)]
-    pub struct StudentId {
-        #[serde(rename = "id")]
-        pub inner: String,
-    }
-
-    pub async fn get_student_by_id(student_id: web::Query<StudentId>, pool: web::Data<Pool>) -> impl Responder {
+    pub async fn get_student_by_id(student_id: web::Query<QueryById>, pool: web::Data<Pool>) -> impl Responder {
         let client = pool.get().await.unwrap();
     
         log::debug!("get student by student_id");
@@ -72,7 +65,7 @@ mod post_services {
 
     use crate::model::Student;
 
-    use super::STUDENT_TABLE;
+    use crate::api::STUDENT_TABLE;
 
     pub async fn register_student(student: web::Query<Student>, pool: web::Data<Pool>) -> impl Responder {
         let client = pool.get().await.unwrap();

@@ -3,9 +3,9 @@ use tokio_postgres::Row;
 
 #[derive(Serialize, Deserialize)]
 pub struct Teacher {
-    name: String,
-    teacher_id: String,
-    email: Option<String>,
+    pub name: String,
+    pub teacher_id: String,
+    pub email: Option<String>,
 }
 
 impl Teacher {
