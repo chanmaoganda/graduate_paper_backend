@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 
+use crate::manager::RegexManager;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Student {
     pub name: String,
@@ -18,5 +20,17 @@ impl Student {
             student_id,
             email,
         }
+    }
+
+    pub fn check_valid(&self, regex: &actix_web::web::Data<RegexManager>) -> bool {
+        if !regex.is_valid_id(&self.student_id) {
+            return false;
+        }
+        if let Some(email) = &self.email {
+            if !regex.is_valid_email(email) {
+                return false;
+            }
+        }
+        true
     }
 }

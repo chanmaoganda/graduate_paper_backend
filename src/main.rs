@@ -2,8 +2,10 @@ mod api;
 mod model;
 mod postgres;
 mod services;
+mod manager;
 
 use actix_web::{web, App, HttpServer};
+use manager::RegexManager;
 
 fn get_addr_port<'a>() -> (&'a str, u16) {
     let address = env!("ADDRESS");
@@ -22,6 +24,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(RegexManager::new()))
             .configure(api::configure_apis)
     })
     .bind((address, port))?

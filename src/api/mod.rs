@@ -113,13 +113,18 @@ mod api_tests {
     async fn student_register_test() {
         let base_ip = addr();
 
-        let students = vec![
+        let valid_students = vec![
             Student { name: "avania".into(), student_id: "3022244109".into(), email: Some("avania@gmail.com".into()) },
             Student { name: "john".into(), student_id: "3022244110".into(), email: Some("john@gmail.com".into()) },
             Student { name: "jane".into(), student_id: "3022244111".into(), email: Some("jane@gmail.com".into()) },
         ];
 
-        let queries = students
+        let invalid_students = vec![
+            Student { name: "avania".into(), student_id: "3022244112".into(), email: Some("avania".into()) },
+            Student { name: "john".into(), student_id: "3022244".into(), email: Some("john@gmail.com".into()) },
+        ];
+
+        let queries = valid_students
             .into_iter()
             .map(IntoQueryString::into_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
@@ -129,6 +134,17 @@ mod api_tests {
         for query_url in queries {
             let response = client.post(query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
+        }
+
+        let queries = invalid_students
+            .into_iter()
+            .map(IntoQueryString::into_query_string)
+            .map(|query| format!("{}/api/student/register?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        for query_url in queries {
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 400);
         }
     }
 

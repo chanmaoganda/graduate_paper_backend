@@ -63,14 +63,19 @@ mod post_services {
     use actix_web::{web, HttpResponse, Responder};
     use deadpool_postgres::Pool;
 
+    use crate::manager::RegexManager;
     use crate::model::Student;
 
     use crate::api::STUDENT_TABLE;
 
-    pub async fn register_student(student: web::Query<Student>, pool: web::Data<Pool>) -> impl Responder {
+    pub async fn register_student(student: web::Query<Student>, pool: web::Data<Pool>, regex: web::Data<RegexManager>) -> impl Responder {
         let client = pool.get().await.unwrap();
 
         log::debug!("create student");
+
+        if !student.check_valid(&regex) {
+            return HttpResponse::BadRequest().body("Invalid email or password");
+        }
 
         let Student { student_id, name, email } = student.into_inner();
 
