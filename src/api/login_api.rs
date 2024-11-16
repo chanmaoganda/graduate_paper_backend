@@ -22,7 +22,11 @@ async fn teacher_login(user: web::Query<User>, pool: web::Data<Pool>) -> impl Re
     base_login(user, TEACHER_TABLE, pool).await
 }
 
-async fn base_login(user: web::Query<User>, table_name: &str, pool: web::Data<Pool>) -> impl Responder {
+async fn base_login(
+    user: web::Query<User>,
+    table_name: &str,
+    pool: web::Data<Pool>,
+) -> impl Responder {
     let client = pool.get().await.unwrap();
 
     let username = user.into_inner().id;

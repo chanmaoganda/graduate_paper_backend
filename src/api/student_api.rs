@@ -1,16 +1,16 @@
 use actix_web::web;
 
-use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT};
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT};
 
 pub fn get_student_apis() -> actix_web::Scope {
-    let query_id_api = web::resource(QUERY_ID_ENDPOINT)
-        .route(web::get().to(get_services::get_student_by_id));
+    let query_id_api =
+        web::resource(QUERY_ID_ENDPOINT).route(web::get().to(get_services::get_student_by_id));
 
-    let list_api = web::resource(LIST_ENDPOINT)
-        .route(web::get().to(get_services::list_all_students));
-    
-    let register_api = web::resource(REGISTER_ENDPOINT)
-        .route(web::post().to(post_services::register_student));
+    let list_api =
+        web::resource(LIST_ENDPOINT).route(web::get().to(get_services::list_all_students));
+
+    let register_api =
+        web::resource(REGISTER_ENDPOINT).route(web::post().to(post_services::register_student));
 
     web::scope("/student")
         .service(query_id_api)
@@ -19,15 +19,18 @@ pub fn get_student_apis() -> actix_web::Scope {
 }
 
 mod get_services {
-    use actix_web::{web, Responder, HttpResponse};
-    use deadpool_postgres::Pool;
     use crate::model::{QueryById, Student};
+    use actix_web::{web, HttpResponse, Responder};
+    use deadpool_postgres::Pool;
 
     use crate::api::STUDENT_TABLE;
 
-    pub async fn get_student_by_id(student_id: web::Query<QueryById>, pool: web::Data<Pool>) -> impl Responder {
+    pub async fn get_student_by_id(
+        student_id: web::Query<QueryById>,
+        pool: web::Data<Pool>,
+    ) -> impl Responder {
         let client = pool.get().await.unwrap();
-    
+
         log::debug!("get student by student_id");
         let student_id = student_id.into_inner();
         let sql = format!(
@@ -43,10 +46,10 @@ mod get_services {
             Err(_) => HttpResponse::NotFound().body("Student not found"),
         }
     }
-    
+
     pub async fn list_all_students(pool: web::Data<Pool>) -> impl Responder {
         let client = pool.get().await.unwrap();
-    
+
         log::debug!("get all students");
         let sql = format!("SELECT name, student_id, email FROM {STUDENT_TABLE}");
         let stmt = client.prepare(sql.as_str()).await.unwrap();
@@ -56,7 +59,7 @@ mod get_services {
             .map(Student::from_row)
             .collect::<Vec<Student>>();
         web::Json(students)
-    }    
+    }
 }
 
 mod post_services {
@@ -68,7 +71,11 @@ mod post_services {
 
     use crate::api::STUDENT_TABLE;
 
-    pub async fn register_student(student: web::Query<Student>, pool: web::Data<Pool>, regex: web::Data<RegexManager>) -> impl Responder {
+    pub async fn register_student(
+        student: web::Query<Student>,
+        pool: web::Data<Pool>,
+        regex: web::Data<RegexManager>,
+    ) -> impl Responder {
         let client = pool.get().await.unwrap();
 
         log::debug!("create student");
@@ -77,12 +84,22 @@ mod post_services {
             return HttpResponse::BadRequest().body("Invalid email or password");
         }
 
-        let Student { student_id, name, email } = student.into_inner();
+        let Student {
+            student_id,
+            name,
+            email,
+        } = student.into_inner();
 
         let sql = if let Some(email) = email {
-            format!("INSERT INTO {STUDENT_TABLE} (name, student_id, email) VALUES ('{}', '{}', '{}');", name, student_id, email)
+            format!(
+                "INSERT INTO {STUDENT_TABLE} (name, student_id, email) VALUES ('{}', '{}', '{}');",
+                name, student_id, email
+            )
         } else {
-            format!("INSERT INTO {STUDENT_TABLE} (name, student_id) VALUES ('{}', '{}');", name, student_id)
+            format!(
+                "INSERT INTO {STUDENT_TABLE} (name, student_id) VALUES ('{}', '{}');",
+                name, student_id
+            )
         };
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();

@@ -4,7 +4,6 @@ use regex::Regex;
 pub struct RegexManager {
     email_regex: Regex,
     id_regex: Regex,
-
 }
 
 impl RegexManager {

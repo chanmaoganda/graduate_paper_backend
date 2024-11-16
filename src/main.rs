@@ -1,8 +1,8 @@
 mod api;
+mod manager;
 mod model;
 mod postgres;
 mod services;
-mod manager;
 
 use actix_web::{web, App, HttpServer};
 use manager::RegexManager;
@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
 
     let (address, port) = get_addr_port();
     let pool = postgres::build_pool().await.unwrap();
-    
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(pool.clone()))

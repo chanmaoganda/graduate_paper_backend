@@ -1,12 +1,10 @@
 mod full_paper_api;
+mod login_api;
 mod paper_api;
 mod student_api;
 mod teacher_api;
-mod login_api;
 
 use actix_web::web;
-use serde::Serialize;
-use serde_json::Value;
 
 const QUERY_ID_ENDPOINT: &str = "/query";
 const LIST_ENDPOINT: &str = "/list";
@@ -29,51 +27,15 @@ pub fn configure_apis(cfg: &mut web::ServiceConfig) {
         .service(paper_scope)
         .service(full_paper_scope);
 
-    cfg.service(api_scope)
-       .service(login_service);
-}
-
-pub trait IntoQueryString: Serialize + Sized {
-    fn into_query_string(self) -> String;
-}
-
-impl<T: Serialize> IntoQueryString for T {
-    fn into_query_string(self) -> String {
-        let serialized = serde_json::to_value(self).unwrap();
-
-        let mut query_pairs = Vec::new();
-        if let Value::Object(values) = serialized {
-            for (key, value) in values {
-                let result = match value {
-                    Value::String(s) => {
-                        format!("{}={}", key, s)
-                    }
-                    Value::Number(n) => {
-                        if let Some(num) = n.as_u64() {
-                            format!("{key}={num}")
-                        } else {
-                            panic!("Number not invalid")
-                        }
-                    }
-                    Value::Bool(b) => {
-                        format!("{}={}", key, b)
-                    },
-                    _ => {
-                        log::debug!("Unsupported type");
-                        continue;
-                    } // Handle other types if necessary
-                };
-                query_pairs.push(result)
-            }
-        }
-        query_pairs.join("&")
-    }
+    cfg.service(api_scope).service(login_service);
 }
 
 #[cfg(test)]
 mod api_tests {
-    use crate::{api::IntoQueryString, model::Student};
+    use serde::Serialize;
+    use serde_json::Value;
 
+    use crate::model::{Student, Teacher};
 
     #[tokio::test]
     async fn query_test() {
@@ -87,7 +49,7 @@ mod api_tests {
     async fn list_test() {
         let base_ip = addr();
         let list_url = format!("{}/api/student/list", base_ip);
-        
+
         let response = reqwest::get(list_url).await.unwrap();
         assert_eq!(response.status(), 200);
 
@@ -114,14 +76,34 @@ mod api_tests {
         let base_ip = addr();
 
         let valid_students = vec![
-            Student { name: "avania".into(), student_id: "3022244109".into(), email: Some("avania@gmail.com".into()) },
-            Student { name: "john".into(), student_id: "3022244110".into(), email: Some("john@gmail.com".into()) },
-            Student { name: "jane".into(), student_id: "3022244111".into(), email: Some("jane@gmail.com".into()) },
+            Student {
+                name: "avania".into(),
+                student_id: "3022244109".into(),
+                email: Some("avania@gmail.com".into()),
+            },
+            Student {
+                name: "john".into(),
+                student_id: "3022244110".into(),
+                email: Some("john@gmail.com".into()),
+            },
+            Student {
+                name: "jane".into(),
+                student_id: "3022244111".into(),
+                email: Some("jane@gmail.com".into()),
+            },
         ];
 
         let invalid_students = vec![
-            Student { name: "avania".into(), student_id: "3022244112".into(), email: Some("avania".into()) },
-            Student { name: "john".into(), student_id: "3022244".into(), email: Some("john@gmail.com".into()) },
+            Student {
+                name: "avania".into(),
+                student_id: "3022244112".into(),
+                email: Some("avania".into()),
+            },
+            Student {
+                name: "john".into(),
+                student_id: "3022244".into(),
+                email: Some("john@gmail.com".into()),
+            },
         ];
 
         let queries = valid_students
@@ -148,9 +130,105 @@ mod api_tests {
         }
     }
 
+    #[tokio::test]
+    async fn teacher_register_test() {
+        let base_ip = addr();
+
+        let valid_teachers = vec![
+            Teacher {
+                name: "junjie chen".into(),
+                teacher_id: "0000000001".into(),
+                email: Some("junjiechen@tju.edu.cn".into()),
+            },
+            Teacher {
+                name: "zheng wang".into(),
+                teacher_id: "0000000002".into(),
+                email: Some("wangzheng@tju.edu.cn".into()),
+            },
+            Teacher {
+                name: "jenifer".into(),
+                teacher_id: "0000000003".into(),
+                email: Some("jenifer@tju.edu.cn".into()),
+            },
+        ];
+
+        let invalid_teachers = vec![
+            Teacher {
+                name: "invalid".into(),
+                teacher_id: "0000000010".into(),
+                email: Some("invalid.mail".into()),
+            },
+            Teacher {
+                name: "invalid".into(),
+                teacher_id: "00000000".into(),
+                email: Some("john@tju.edu.cn".into()),
+            },
+        ];
+
+        let queries = valid_teachers
+            .into_iter()
+            .map(IntoQueryString::into_query_string)
+            .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        let client = reqwest::Client::new();
+        for query_url in queries {
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+
+        let queries = invalid_teachers
+            .into_iter()
+            .map(IntoQueryString::into_query_string)
+            .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        for query_url in queries {
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 400);
+        }
+    }
+
     fn addr() -> String {
         let address = env!("ADDRESS");
         let port = env!("PORT");
         format!("http://{}:{}", address, port)
+    }
+
+    pub trait IntoQueryString: Serialize + Sized {
+        fn into_query_string(self) -> String;
+    }
+
+    impl<T: Serialize> IntoQueryString for T {
+        fn into_query_string(self) -> String {
+            let serialized = serde_json::to_value(self).unwrap();
+
+            let mut query_pairs = Vec::new();
+            if let Value::Object(values) = serialized {
+                for (key, value) in values {
+                    let result = match value {
+                        Value::String(s) => {
+                            format!("{}={}", key, s)
+                        }
+                        Value::Number(n) => {
+                            if let Some(num) = n.as_u64() {
+                                format!("{key}={num}")
+                            } else {
+                                panic!("Number not invalid")
+                            }
+                        }
+                        Value::Bool(b) => {
+                            format!("{}={}", key, b)
+                        }
+                        _ => {
+                            log::debug!("Unsupported type");
+                            continue;
+                        } // Handle other types if necessary
+                    };
+                    query_pairs.push(result)
+                }
+            }
+            query_pairs.join("&")
+        }
     }
 }
