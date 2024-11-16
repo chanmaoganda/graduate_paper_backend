@@ -37,7 +37,7 @@ async fn list_all_teachers(pool: web::Data<Pool>) -> impl Responder {
     let client = pool.get().await.unwrap();
 
     log::debug!("get all teachers");
-    let sql = format!("SELECT base_id, name, teacher_id, email FROM {TEACHER_TABLE};");
+    let sql = format!("SELECT name, teacher_id, email FROM {TEACHER_TABLE};");
     let stmt = client.prepare(sql.as_str()).await.unwrap();
     let rows = client.query(&stmt, &[]).await.unwrap();
     let teachers = rows
