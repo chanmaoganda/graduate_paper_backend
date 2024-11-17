@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 
@@ -22,7 +24,9 @@ impl Student {
         }
     }
 
-    pub fn check_valid(&self, regex: &actix_web::web::Data<RegexManager>) -> bool {
+    pub fn check_valid(&self, regex: &axum::Extension<Arc<RegexManager>>) -> bool {
+        log::debug!("Checking if student ({}, {}) is valid", self.name, self.student_id);
+
         if !regex.is_valid_id(&self.student_id) {
             return false;
         }
