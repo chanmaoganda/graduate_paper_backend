@@ -2,32 +2,40 @@ mod api;
 mod manager;
 mod model;
 mod postgres;
-mod services;
+// mod services;
 
-use actix_web::{web, App, HttpServer};
+use std::sync::Arc;
+
+use axum::{Extension, Router};
 use manager::RegexManager;
 
-fn get_addr_port<'a>() -> (&'a str, u16) {
+fn get_addr_port() -> String {
     let address = env!("ADDRESS");
-    let port = env!("PORT").parse().unwrap();
-    (address, port)
+    let port = env!("PORT");
+    format!("{}:{}", address, port)
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+// TODO: Add local timer for axum tracing_subscriber::fmt().with_timer()
+#[tokio::main]
+async fn main() {
     env_logger::init();
-    log::debug!("Starting server");
-
-    let (address, port) = get_addr_port();
+    
     let pool = postgres::build_pool().await.unwrap();
 
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(pool.clone()))
-            .app_data(web::Data::new(RegexManager::new()))
-            .configure(api::configure_apis)
-    })
-    .bind((address, port))?
-    .run()
-    .await
+    let shared_pool = Arc::new(pool);
+    let regex_manager = Arc::new(RegexManager::new());
+
+    // let external_router = Router::new().route("/api", get(api::get_api_list));
+
+    let app = Router::new()
+        .nest("/api", api::registered_apis_router())
+        .layer(Extension(shared_pool))
+        .layer(Extension(regex_manager));
+
+    let listener = tokio::net::TcpListener::bind(get_addr_port())
+        .await
+        .unwrap();
+    
+    log::debug!("listening on {}", listener.local_addr().unwrap());
+    axum::serve(listener, app).await.unwrap();
 }

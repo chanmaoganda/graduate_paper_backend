@@ -1,44 +1,45 @@
-use actix_web::{web, HttpResponse, Responder};
-use deadpool_postgres::Pool;
+use std::sync::Arc;
 
-use crate::model::User;
+use axum::{extract::Query, response::Response, routing::get, Extension, Router};
+use deadpool_postgres::Pool;
+use reqwest::StatusCode;
+
+use crate::model::QueryById;
 
 use super::{STUDENT_TABLE, TEACHER_TABLE};
 
-pub fn get_login_api() -> actix_web::Scope {
-    let student_login = web::resource("/student").route(web::get().to(student_login));
-    let teacher_login = web::resource("/teacher").route(web::get().to(teacher_login));
+pub fn get_login_api() -> Router {
+    let student_login_api = get(student_login);
+    let teacher_login_api = get(teacher_login);
 
-    web::scope("/login")
-        .service(student_login)
-        .service(teacher_login)
+    Router::new()
+       .route("/student", student_login_api)
+       .route("/teacher", teacher_login_api)
 }
 
-async fn student_login(user: web::Query<User>, pool: web::Data<Pool>) -> impl Responder {
-    base_login(user, STUDENT_TABLE, pool).await
+async fn student_login(user_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> Response<String> {
+    base_login(user_id, STUDENT_TABLE, pool).await
 }
 
-async fn teacher_login(user: web::Query<User>, pool: web::Data<Pool>) -> impl Responder {
-    base_login(user, TEACHER_TABLE, pool).await
+async fn teacher_login(user_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> Response<String> {
+    base_login(user_id, TEACHER_TABLE, pool).await
 }
 
 async fn base_login(
-    user: web::Query<User>,
+    user_id: Query<QueryById>,
     table_name: &str,
-    pool: web::Data<Pool>,
-) -> impl Responder {
+    pool: Extension<Arc<Pool>>,
+) -> Response<String> {
     let client = pool.get().await.unwrap();
 
-    let username = user.into_inner().id;
-
-    let sql = format!("SELECT COUNT(1) FROM {table_name} WHERE {table_name}_id = '{username}';");
+    let sql = format!("SELECT COUNT(1) FROM {table_name} WHERE {table_name}_id = '{}';", user_id.inner);
     let row = client.query_one(&sql, &[]).await.unwrap();
 
     let count: i64 = row.get(0);
     if count != 1 {
-        HttpResponse::Unauthorized().body("Invalid username or password")
+        Response::builder().status(StatusCode::UNAUTHORIZED).body("Invalid username or password".into()).unwrap()
     } else {
-        let body = format!("{table_name} {username} login successful");
-        HttpResponse::Ok().body(body)
+        let body = format!("{table_name} {} login successful", user_id.inner);
+        Response::new(body)
     }
 }
