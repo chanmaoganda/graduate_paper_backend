@@ -1,6 +1,6 @@
 use axum::Router;
 
-// mod full_paper_api;
+mod full_paper_api;
 mod login_api;
 mod paper_api;
 mod student_api;
@@ -19,13 +19,14 @@ pub fn registered_apis_router() -> Router {
     let student_router = student_api::get_student_router();
     let teacher_router = teacher_api::get_teacher_router();
     let paper_router = paper_api::get_paper_router();
-    // let full_paper_scope = full_paper_api::get_full_paper_apis();
+    let full_paper_router = full_paper_api::get_full_paper_router();
     let login_router = login_api::get_login_router();
 
     Router::new()
         .nest("/student", student_router)
         .nest("/teacher", teacher_router)
         .nest("/paper", paper_router)
+        .nest("/full_paper", full_paper_router)
         .nest("/login", login_router)
 }
 

@@ -1,17 +1,20 @@
-use actix_web::{web, Responder};
+use std::sync::Arc;
+
+use axum::{response::IntoResponse, routing::get, Extension, Router};
 use deadpool_postgres::Pool;
 
 use crate::model::FullPaperData;
 
 use super::{LIST_ENDPOINT, PAPER_TABLE, STUDENT_TABLE, TEACHER_TABLE};
 
-pub fn get_full_paper_apis() -> actix_web::Scope {
-    let list_api = web::resource(LIST_ENDPOINT).route(web::get().to(list_all_paper));
+pub fn get_full_paper_router() -> Router {
+    let list_api = get(list_all_full_paper);
 
-    web::scope("/full_paper").service(list_api)
+    Router::new()
+        .route(LIST_ENDPOINT, list_api)
 }
 
-async fn list_all_paper(pool: web::Data<Pool>) -> impl Responder {
+async fn list_all_full_paper(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
     let client = pool.get().await.unwrap();
     log::debug!("list all papers");
 
@@ -23,5 +26,5 @@ async fn list_all_paper(pool: web::Data<Pool>) -> impl Responder {
         .into_iter()
         .map(FullPaperData::from_row)
         .collect::<Vec<FullPaperData>>();
-    web::Json(full_paper_datas)
+    axum::Json(full_paper_datas)
 }
