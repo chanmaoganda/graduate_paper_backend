@@ -47,26 +47,26 @@ mod api_tests {
 
         let invalid_students = generate_invalid_students();
 
-        let queries = valid_students
+        let valid_queries = valid_students
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
+        for valid_query_url in valid_queries {
+            let response = client.post(valid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
 
-        let bad_queries = invalid_students
+        let invalid_queries = invalid_students
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        for bad_query_url in bad_queries {
-            let response = client.post(bad_query_url).send().await.unwrap();
+        for invalid_query_url in invalid_queries {
+            let response = client.post(invalid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 400);
         }
     }
@@ -79,7 +79,7 @@ mod api_tests {
 
         let invalid_teachers = generate_invalid_teachers();
 
-        let queries = valid_teachers
+        let valid_queries = valid_teachers
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
@@ -87,19 +87,19 @@ mod api_tests {
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
+        for valid_query_url in valid_queries {
+            let response = client.post(valid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
 
-        let bad_queries = invalid_teachers
+        let invalid_queries = invalid_teachers
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        for bad_query_url in bad_queries {
-            let response = client.post(bad_query_url).send().await.unwrap();
+        for invalid_query_url in invalid_queries {
+            let response = client.post(invalid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 400);
         }
     }
@@ -129,6 +129,7 @@ mod api_tests {
 
         for invalid_student_id in invalid_student_ids {
             let query_url = format!("{}/api/student/query?id={}", base_ip, invalid_student_id);
+            dbg!(&query_url);
             let response = client.get(query_url).send().await.unwrap();
 
             assert_eq!(response.status(), 404);
@@ -148,6 +149,7 @@ mod api_tests {
 
         for valid_teacher_id in valid_teacher_ids {
             let query_url = format!("{}/api/teacher/query?id={}", base_ip, valid_teacher_id);
+            dbg!(&query_url);
             let response = client.get(query_url).send().await.unwrap();
 
             assert_eq!(response.status(), 200);
@@ -160,6 +162,7 @@ mod api_tests {
 
         for invalid_teacher_id in invalid_teacher_ids {
             let query_url = format!("{}/api/teacher/query?id={}", base_ip, invalid_teacher_id);
+            dbg!(&query_url);
             let response = client.get(query_url).send().await.unwrap();
 
             assert_eq!(response.status(), 404);
@@ -211,6 +214,7 @@ mod api_tests {
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
         for valid_query_url in valid_queries {
+            dbg!(&valid_query_url);
             let response = client.post(valid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
@@ -224,6 +228,7 @@ mod api_tests {
             .collect::<Vec<String>>();
 
         for invalid_query_url in invalid_queries {
+            dbg!(&invalid_query_url);
             let response = client.post(invalid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
@@ -233,9 +238,9 @@ mod api_tests {
     async fn teacher_unregister_test() {
         let base_ip = addr();
 
-        let valid_teachers = generate_valid_students();
+        let valid_teachers = generate_valid_teachers();
 
-        let queries = valid_teachers
+        let valid_queries = valid_teachers
             .into_iter()
             .map(IntoQueryString::into_id_name_query_string)
             .map(|query| format!("{}/api/teacher/unregister?{}", base_ip, query))
@@ -243,12 +248,13 @@ mod api_tests {
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
+        for valid_query_url in valid_queries {
+            dbg!(&valid_query_url);
+            let response = client.post(valid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
 
-        let invalid_teachers = generate_invalid_students();
+        let invalid_teachers = generate_invalid_teachers();
 
         let invalid_queries = invalid_teachers
             .into_iter()
@@ -257,6 +263,7 @@ mod api_tests {
             .collect::<Vec<String>>();
 
         for invalid_query_url in invalid_queries {
+            dbg!(&invalid_query_url);
             let response = client.post(invalid_query_url).send().await.unwrap();
             assert_eq!(response.status(), 200);
         }
