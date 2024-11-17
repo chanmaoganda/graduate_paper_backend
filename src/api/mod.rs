@@ -185,18 +185,33 @@ mod api_tests {
     }
 
     #[tokio::test]
-    async fn login_test() {
+    async fn student_login_test() {
         let base_ip = addr();
-        let student_url = format!("{}/api/login/student?id={}", base_ip, "3022244109");
-        let teacher_url = format!("{}/api/login/teacher?id={}", base_ip, "0000000001");
-
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        let response = client.get(student_url).send().await.unwrap();
-        assert_eq!(response.status(), 200);
+        let valid_students = generate_valid_students();
 
-        let response = client.get(teacher_url).send().await.unwrap();
-        assert_eq!(response.status(), 200);
+        for valid_student in valid_students {
+            let student_url = format!("{}/api/login/student?id={}", base_ip, valid_student.student_id);
+            dbg!(&student_url);
+            let response = client.get(student_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn teacher_login_test() {
+        let base_ip = addr();
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        let valid_teachers = generate_valid_teachers();
+
+        for valid_teacher in valid_teachers {
+            let teacher_url = format!("{}/api/login/teacher?id={}", base_ip, valid_teacher.teacher_id);
+            dbg!(&teacher_url);
+            let response = client.get(teacher_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
     }
 
     #[tokio::test]
