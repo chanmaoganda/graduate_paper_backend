@@ -1,7 +1,7 @@
 
 use axum::{routing::{get, post}, Router};
 
-use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
 pub fn get_student_apis() -> Router {
     let query_api = get(get_services::get_student_by_id);
@@ -19,7 +19,7 @@ mod get_services {
     use std::sync::Arc;
 
     use crate::model::{QueryById, Student};
-    use axum::{extract::Query, response::{IntoResponse, Response}, Extension, Json};
+    use axum::{extract::Query, response::{IntoResponse, Response}, Extension};
     use deadpool_postgres::Pool;
     use reqwest::StatusCode;
     use log::debug;
@@ -56,7 +56,7 @@ mod get_services {
             .into_iter()
             .map(Student::from_row)
             .collect::<Vec<Student>>();
-        Json(students)
+        axum::Json(students)
     }
 }
 

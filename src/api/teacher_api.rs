@@ -1,43 +1,40 @@
-use actix_web::web;
+use axum::{routing::{get, post}, Router};
 
-use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
-pub fn get_teacher_apis() -> actix_web::Scope {
-    let query_id_api =
-        web::resource(QUERY_ID_ENDPOINT).route(web::get().to(get_services::get_teacher_by_id));
-
-    let list_api =
-        web::resource(LIST_ENDPOINT).route(web::get().to(get_services::list_all_teachers));
-
-    let register_api =
-        web::resource(REGISTER_ENDPOINT).route(web::post().to(post_services::register_teacher));
-
-    let unregister_api =
-        web::resource(UNREGISTER_ENDPOINT).route(web::post().to(post_services::unregister_teacher));
-
-    web::scope("/teacher")
-        .service(query_id_api)
-        .service(list_api)
-        .service(register_api)
-        .service(unregister_api)
+pub fn get_teacher_apis() -> Router {
+    let query_api = get(get_services::get_teacher_by_id);
+    let list_api = get(get_services::list_all_teachers);
+    let register_api = post(post_services::register_teacher);
+    let unregister_api = post(post_services::unregister_teacher);
+    Router::new()
+        .route(QUERY_ID_ENDPOINT, query_api)
+        .route(LIST_ENDPOINT, list_api)
+        .route(REGISTER_ENDPOINT, register_api)
+        .route(UNREGISTER_ENDPOINT, unregister_api)
 }
 
 mod get_services {
-    use actix_web::{web, HttpResponse, Responder};
+    use std::sync::Arc;
+
+    use axum::extract::Query;
+    use axum::response::{IntoResponse, Response};
+    use axum::Extension;
     use deadpool_postgres::Pool;
+    use reqwest::StatusCode;
 
     use crate::model::{QueryById, Teacher};
 
     use crate::api::TEACHER_TABLE;
 
     pub async fn get_teacher_by_id(
-        teacher_id: web::Query<QueryById>,
-        pool: web::Data<Pool>,
-    ) -> impl Responder {
+        teacher_id: Query<QueryById>,
+        pool: Extension<Arc<Pool>>,
+    ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
         log::debug!("get teacher by teacher_id");
-        let teacher_id = teacher_id.into_inner();
+
         let sql = format!(
             "SELECT name FROM {TEACHER_TABLE} WHERE teacher_id = '{}';",
             teacher_id.inner
@@ -46,13 +43,13 @@ mod get_services {
         match client.query_one(&stmt, &[]).await {
             Ok(row) => {
                 let name: String = row.get(0);
-                HttpResponse::Ok().body(name)
+                Response::new(name)
             }
-            Err(_) => HttpResponse::NotFound().body("Teacher not found"),
+            Err(_) => Response::builder().status(StatusCode::NOT_FOUND).body("Teacher not found".into()).unwrap(),
         }
     }
 
-    pub async fn list_all_teachers(pool: web::Data<Pool>) -> impl Responder {
+    pub async fn list_all_teachers(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
         let client = pool.get().await.unwrap();
 
         log::debug!("get all teachers");
@@ -63,13 +60,18 @@ mod get_services {
             .into_iter()
             .map(Teacher::from_row)
             .collect::<Vec<Teacher>>();
-        web::Json(teachers)
+        axum::Json(teachers)
     }
 }
 
 mod post_services {
-    use actix_web::{web, HttpResponse, Responder};
+    use std::sync::Arc;
+
+    use axum::extract::Query;
+    use axum::response::Response;
+    use axum::Extension;
     use deadpool_postgres::Pool;
+    use reqwest::StatusCode;
 
     use crate::manager::RegexManager;
     use crate::model::Teacher;
@@ -78,23 +80,23 @@ mod post_services {
 
     // TODO: registering teacher requires privileges
     pub async fn register_teacher(
-        teacher: web::Query<Teacher>,
-        pool: web::Data<Pool>,
-        regex: web::Data<RegexManager>,
-    ) -> impl Responder {
+        teacher: Query<Teacher>,
+        pool: Extension<Arc<Pool>>,
+        regex: Extension<Arc<RegexManager>>,
+    ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
         log::debug!("create teacher");
 
         if !teacher.check_valid(&regex) {
-            return HttpResponse::BadRequest().body("Invalid email or password");
+            return Response::builder().status(StatusCode::BAD_REQUEST).body("Invalid email or password".into()).unwrap();
         }
 
         let Teacher {
             teacher_id,
             name,
             email,
-        } = teacher.into_inner();
+        } = teacher.0;
 
         let sql = if let Some(email) = email {
             format!(
@@ -110,22 +112,22 @@ mod post_services {
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
-            Ok(_) => HttpResponse::Ok().body("Student created"),
-            Err(_) => HttpResponse::InternalServerError().body("Error creating student"),
+            Ok(_) => Response::new("Student created".into()),
+            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Error creating student".into()).unwrap(),
         }
     }
 
     pub async fn unregister_teacher(
-        teacher: web::Query<Teacher>,
-        pool: web::Data<Pool>,
-    ) -> impl Responder {
+        teacher: Query<Teacher>,
+        pool: Extension<Arc<Pool>>,
+    ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
         log::debug!("unregister teacher");
 
         let Teacher {
             teacher_id, name, ..
-        } = teacher.into_inner();
+        } = teacher.0;
 
         let sql = format!(
             "DELETE FROM {TEACHER_TABLE} WHERE teacher_id = '{}' AND name = '{}';",
@@ -134,8 +136,8 @@ mod post_services {
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
-            Ok(_) => HttpResponse::Ok().body("Teacher unregistered"),
-            Err(_) => HttpResponse::InternalServerError().body("Internal error unregister teacher"),
+            Ok(_) => Response::new("Teacher unregistered".into()),
+            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Internal error unregister teacher".into()).unwrap(),
         }
     }
 }

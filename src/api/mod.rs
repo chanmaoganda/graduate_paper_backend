@@ -1,35 +1,33 @@
-mod full_paper_api;
+use axum::Router;
+
+// mod full_paper_api;
 mod login_api;
-mod paper_api;
+// mod paper_api;
 mod student_api;
 mod teacher_api;
-
-use actix_web::web;
 
 const QUERY_ID_ENDPOINT: &str = "/query";
 const LIST_ENDPOINT: &str = "/list";
 const REGISTER_ENDPOINT: &str = "/register";
 const UNREGISTER_ENDPOINT: &str = "/unregister";
 
-const PAPER_TABLE: &str = env!("PAPER_TABLE");
+// const PAPER_TABLE: &str = env!("PAPER_TABLE");
 const STUDENT_TABLE: &str = env!("STUDENT_TABLE");
 const TEACHER_TABLE: &str = env!("TEACHER_TABLE");
 
-pub fn configure_apis(cfg: &mut web::ServiceConfig) {
-    let student_scope = student_api::get_student_apis();
-    let teacher_scope = teacher_api::get_teacher_apis();
-    let paper_scope = paper_api::get_paper_apis();
-    let full_paper_scope = full_paper_api::get_full_paper_apis();
-    let login_service = login_api::get_login_api();
+pub fn registered_apis_router() -> Router {
+    let student_router = student_api::get_student_apis();
+    let teacher_router = teacher_api::get_teacher_apis();
+    // let paper_scope = paper_api::get_paper_apis();
+    // let full_paper_scope = full_paper_api::get_full_paper_apis();
+    let login_router = login_api::get_login_api();
 
-    let api_scope = web::scope("/api")
-        .service(student_scope)
-        .service(teacher_scope)
-        .service(paper_scope)
-        .service(full_paper_scope);
-
-    cfg.service(api_scope).service(login_service);
+    Router::new()
+        .nest("/student", student_router)
+        .nest("/teacher", teacher_router)
+        .nest("/login", login_router)
 }
+
 
 #[cfg(test)]
 mod api_tests {
@@ -201,8 +199,8 @@ mod api_tests {
     #[tokio::test]
     async fn login_test() {
         let base_ip = addr();
-        let student_url = format!("{}/login/student?id={}", base_ip, "3022244109");
-        let teacher_url = format!("{}/login/teacher?id={}", base_ip, "0000000001");
+        let student_url = format!("{}/api/login/student?id={}", base_ip, "3022244109");
+        let teacher_url = format!("{}/api/login/teacher?id={}", base_ip, "0000000001");
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
