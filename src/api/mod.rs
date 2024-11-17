@@ -9,6 +9,7 @@ mod teacher_api;
 const QUERY_ID_ENDPOINT: &str = "/query";
 const LIST_ENDPOINT: &str = "/list";
 const REGISTER_ENDPOINT: &str = "/register";
+const JSON_REGISTER_ENDPOINT: &str = "/json_register";
 const UNREGISTER_ENDPOINT: &str = "/unregister";
 
 const PAPER_TABLE: &str = env!("PAPER_TABLE");
@@ -42,36 +43,9 @@ mod api_tests {
     async fn student_register_test() {
         let base_ip = addr();
 
-        let valid_students = vec![
-            Student {
-                name: "avania".into(),
-                student_id: "3022244109".into(),
-                email: Some("avania@gmail.com".into()),
-            },
-            Student {
-                name: "john".into(),
-                student_id: "3022244110".into(),
-                email: Some("john@gmail.com".into()),
-            },
-            Student {
-                name: "jane".into(),
-                student_id: "3022244111".into(),
-                email: Some("jane@gmail.com".into()),
-            },
-        ];
+        let valid_students = generate_valid_students();
 
-        let invalid_students = vec![
-            Student {
-                name: "avania".into(),
-                student_id: "3022244112".into(),
-                email: Some("avania".into()),
-            },
-            Student {
-                name: "john".into(),
-                student_id: "3022244".into(),
-                email: Some("john@gmail.com".into()),
-            },
-        ];
+        let invalid_students = generate_invalid_students();
 
         let queries = valid_students
             .into_iter()
@@ -85,14 +59,14 @@ mod api_tests {
             assert_eq!(response.status(), 200);
         }
 
-        let queries = invalid_students
+        let bad_queries = invalid_students
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/student/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
+        for bad_query_url in bad_queries {
+            let response = client.post(bad_query_url).send().await.unwrap();
             assert_eq!(response.status(), 400);
         }
     }
@@ -101,36 +75,9 @@ mod api_tests {
     async fn teacher_register_test() {
         let base_ip = addr();
 
-        let valid_teachers = vec![
-            Teacher {
-                name: "junjie chen".into(),
-                teacher_id: "0000000001".into(),
-                email: Some("junjiechen@tju.edu.cn".into()),
-            },
-            Teacher {
-                name: "zheng wang".into(),
-                teacher_id: "0000000002".into(),
-                email: Some("wangzheng@tju.edu.cn".into()),
-            },
-            Teacher {
-                name: "jenifer".into(),
-                teacher_id: "0000000003".into(),
-                email: Some("jenifer@tju.edu.cn".into()),
-            },
-        ];
+        let valid_teachers = generate_valid_teachers();
 
-        let invalid_teachers = vec![
-            Teacher {
-                name: "invalid".into(),
-                teacher_id: "0000000010".into(),
-                email: Some("invalid.mail".into()),
-            },
-            Teacher {
-                name: "invalid".into(),
-                teacher_id: "00000000".into(),
-                email: Some("john@tju.edu.cn".into()),
-            },
-        ];
+        let invalid_teachers = generate_invalid_teachers();
 
         let queries = valid_teachers
             .into_iter()
@@ -145,41 +92,75 @@ mod api_tests {
             assert_eq!(response.status(), 200);
         }
 
-        let queries = invalid_teachers
+        let bad_queries = invalid_teachers
             .into_iter()
             .map(IntoQueryString::into_full_query_string)
             .map(|query| format!("{}/api/teacher/register?{}", base_ip, query))
             .collect::<Vec<String>>();
 
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
+        for bad_query_url in bad_queries {
+            let response = client.post(bad_query_url).send().await.unwrap();
             assert_eq!(response.status(), 400);
         }
     }
 
     #[tokio::test]
-    async fn query_test() {
+    async fn student_query_test() {
         let base_ip = addr();
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        let student_ids = vec!["3022244109", "3022244110", "3022244111"];
+        let valid_student_ids = generate_valid_students().into_iter()
+            .map(|s| s.student_id)
+            .collect::<Vec<String>>();
 
-        for student_id in student_ids {
-            let query_url = format!("{}/api/student/query?id={}", base_ip, student_id);
+        for valid_student_id in valid_student_ids {
+            let query_url = format!("{}/api/student/query?id={}", base_ip, valid_student_id);
+            let response = client.get(query_url).send().await.unwrap();
+
+            assert_eq!(response.status(), 200);
+        }
+        
+        let invalid_student_ids = generate_invalid_students().into_iter()
+            .map(|s| s.student_id)
+            .collect::<Vec<String>>();
+
+        for invalid_student_id in invalid_student_ids {
+            let query_url = format!("{}/api/student/query?id={}", base_ip, invalid_student_id);
+            let response = client.get(query_url).send().await.unwrap();
+
+            assert_eq!(response.status(), 404);
+        }
+    }
+
+    #[tokio::test]
+    async fn teacher_query_test() {
+        let base_ip = addr();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        let valid_teacher_ids = generate_valid_teachers().into_iter()
+            .map(|t| t.teacher_id)
+            .collect::<Vec<String>>();
+
+        for valid_teacher_id in valid_teacher_ids {
+            let query_url = format!("{}/api/teacher/query?id={}", base_ip, valid_teacher_id);
             let response = client.get(query_url).send().await.unwrap();
 
             assert_eq!(response.status(), 200);
         }
 
-        let teacher_ids = vec!["0000000001", "0000000002", "0000000003"];
+        let invalid_teacher_ids = generate_invalid_teachers().into_iter()
+            .map(|t| t.teacher_id)
+            .collect::<Vec<String>>();
 
-        for teacher_id in teacher_ids {
-            let query_url = format!("{}/api/teacher/query?id={}", base_ip, teacher_id);
+        for invalid_teacher_id in invalid_teacher_ids {
+            let query_url = format!("{}/api/teacher/query?id={}", base_ip, invalid_teacher_id);
             let response = client.get(query_url).send().await.unwrap();
 
-            assert_eq!(response.status(), 200);
+            assert_eq!(response.status(), 404);
         }
+
     }
 
     #[tokio::test]
@@ -216,7 +197,76 @@ mod api_tests {
     async fn student_unregister_test() {
         let base_ip = addr();
 
-        let valid_students = vec![
+        let valid_students = generate_valid_students();
+
+        let valid_queries = valid_students
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/student/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        for valid_query_url in valid_queries {
+            let response = client.post(valid_query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+
+        let invalid_students = generate_invalid_students();
+
+        let invalid_queries = invalid_students
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/student/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        for invalid_query_url in invalid_queries {
+            let response = client.post(invalid_query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn teacher_unregister_test() {
+        let base_ip = addr();
+
+        let valid_teachers = generate_valid_students();
+
+        let queries = valid_teachers
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/teacher/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        let client = ClientBuilder::new().no_proxy().build().unwrap();
+
+        for query_url in queries {
+            let response = client.post(query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+
+        let invalid_teachers = generate_invalid_students();
+
+        let invalid_queries = invalid_teachers
+            .into_iter()
+            .map(IntoQueryString::into_id_name_query_string)
+            .map(|query| format!("{}/api/teacher/unregister?{}", base_ip, query))
+            .collect::<Vec<String>>();
+
+        for invalid_query_url in invalid_queries {
+            let response = client.post(invalid_query_url).send().await.unwrap();
+            assert_eq!(response.status(), 200);
+        }
+    }
+
+    fn addr() -> String {
+        let address = env!("ADDRESS");
+        let port = env!("PORT");
+        format!("http://{}:{}", address, port)
+    }
+
+    fn generate_valid_students() -> Vec<Student> {
+        vec![
             Student {
                 name: "avania".into(),
                 student_id: "3022244109".into(),
@@ -232,28 +282,26 @@ mod api_tests {
                 student_id: "3022244111".into(),
                 email: Some("jane@gmail.com".into()),
             },
-        ];
-
-        let queries = valid_students
-            .into_iter()
-            .map(IntoQueryString::into_id_name_query_string)
-            .map(|query| format!("{}/api/student/unregister?{}", base_ip, query))
-            .collect::<Vec<String>>();
-
-        let client = ClientBuilder::new().no_proxy().build().unwrap();
-
-        for query_url in queries {
-            dbg!(&query_url);
-            let response = client.post(query_url).send().await.unwrap();
-            assert_eq!(response.status(), 200);
-        }
+        ]
     }
 
-    #[tokio::test]
-    async fn teacher_unregister_test() {
-        let base_ip = addr();
+    fn generate_invalid_students() -> Vec<Student> {
+        vec![
+            Student {
+                name: "avania".into(),
+                student_id: "3022244112".into(),
+                email: Some("avania".into()),
+            },
+            Student {
+                name: "john".into(),
+                student_id: "3022244".into(),
+                email: Some("john@gmail.com".into()),
+            },
+        ]
+    }
 
-        let valid_teachers = vec![
+    fn generate_valid_teachers() -> Vec<Teacher> {
+        vec![
             Teacher {
                 name: "junjie chen".into(),
                 teacher_id: "0000000001".into(),
@@ -269,26 +317,22 @@ mod api_tests {
                 teacher_id: "0000000003".into(),
                 email: Some("jenifer@tju.edu.cn".into()),
             },
-        ];
-
-        let queries = valid_teachers
-            .into_iter()
-            .map(IntoQueryString::into_id_name_query_string)
-            .map(|query| format!("{}/api/teacher/unregister?{}", base_ip, query))
-            .collect::<Vec<String>>();
-
-        let client = ClientBuilder::new().no_proxy().build().unwrap();
-
-        for query_url in queries {
-            let response = client.post(query_url).send().await.unwrap();
-            assert_eq!(response.status(), 200);
-        }
+        ]
     }
 
-    fn addr() -> String {
-        let address = env!("ADDRESS");
-        let port = env!("PORT");
-        format!("http://{}:{}", address, port)
+    fn generate_invalid_teachers() -> Vec<Teacher> {
+        vec![
+            Teacher {
+                name: "invalid".into(),
+                teacher_id: "0000000010".into(),
+                email: Some("invalid.mail".into()),
+            },
+            Teacher {
+                name: "invalid".into(),
+                teacher_id: "00000000".into(),
+                email: Some("john@tju.edu.cn".into()),
+            },
+        ]
     }
 
     pub trait IntoQueryString: Serialize + Sized {
