@@ -14,23 +14,17 @@ pub struct Student {
 
 impl Student {
     pub fn from_row(row: Row) -> Self {
-        let name = row.get(0);
-        let student_id = row.get(1);
+        let student_id = row.get(0);
+        let name = row.get(1);
         let email = row.get(2);
         Self {
-            name,
             student_id,
+            name,
             email,
         }
     }
 
     pub fn check_valid(&self, regex: &axum::Extension<Arc<RegexManager>>) -> bool {
-        log::debug!(
-            "Checking if student ({}, {}) is valid",
-            self.name,
-            self.student_id
-        );
-
         if !regex.is_valid_id(&self.student_id) {
             return false;
         }

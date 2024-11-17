@@ -110,7 +110,8 @@ mod api_tests {
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        let valid_student_ids = generate_valid_students().into_iter()
+        let valid_student_ids = generate_valid_students()
+            .into_iter()
             .map(|s| s.student_id)
             .collect::<Vec<String>>();
 
@@ -120,8 +121,9 @@ mod api_tests {
 
             assert_eq!(response.status(), 200);
         }
-        
-        let invalid_student_ids = generate_invalid_students().into_iter()
+
+        let invalid_student_ids = generate_invalid_students()
+            .into_iter()
             .map(|s| s.student_id)
             .collect::<Vec<String>>();
 
@@ -139,7 +141,8 @@ mod api_tests {
 
         let client = ClientBuilder::new().no_proxy().build().unwrap();
 
-        let valid_teacher_ids = generate_valid_teachers().into_iter()
+        let valid_teacher_ids = generate_valid_teachers()
+            .into_iter()
             .map(|t| t.teacher_id)
             .collect::<Vec<String>>();
 
@@ -150,7 +153,8 @@ mod api_tests {
             assert_eq!(response.status(), 200);
         }
 
-        let invalid_teacher_ids = generate_invalid_teachers().into_iter()
+        let invalid_teacher_ids = generate_invalid_teachers()
+            .into_iter()
             .map(|t| t.teacher_id)
             .collect::<Vec<String>>();
 
@@ -160,7 +164,6 @@ mod api_tests {
 
             assert_eq!(response.status(), 404);
         }
-
     }
 
     #[tokio::test]

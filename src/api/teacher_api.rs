@@ -3,7 +3,10 @@ use axum::{
     Router,
 };
 
-use super::{JSON_REGISTER_ENDPOINT, LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{
+    JSON_REGISTER_ENDPOINT, LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT,
+    UNREGISTER_ENDPOINT,
+};
 
 pub fn get_teacher_router() -> Router {
     let query_api = get(get_services::get_teacher_by_id);
@@ -23,9 +26,11 @@ pub fn get_teacher_router() -> Router {
 mod get_services {
     use std::sync::Arc;
 
-    use axum::extract::Query;
-    use axum::response::{IntoResponse, Response};
-    use axum::Extension;
+    use axum::{
+        extract::Query,
+        response::{IntoResponse, Response},
+        Extension,
+    };
     use deadpool_postgres::Pool;
     use reqwest::StatusCode;
 
@@ -41,12 +46,9 @@ mod get_services {
 
         log::debug!("get teacher by teacher_id");
 
-        let sql = format!(
-            "SELECT name FROM {TEACHER_TABLE} WHERE teacher_id = '{}';",
-            teacher_id.inner
-        );
+        let sql = format!("SELECT name FROM {TEACHER_TABLE} WHERE teacher_id = $1;");
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.query_one(&stmt, &[]).await {
+        match client.query_one(&stmt, &[&teacher_id.inner]).await {
             Ok(row) => {
                 let name: String = row.get(0);
                 Response::new(name)
@@ -62,7 +64,8 @@ mod get_services {
         let client = pool.get().await.unwrap();
 
         log::debug!("get all teachers");
-        let sql = format!("SELECT name, teacher_id, email FROM {TEACHER_TABLE};");
+
+        let sql = format!("SELECT teacher_id, name, email FROM {TEACHER_TABLE};");
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         let rows = client.query(&stmt, &[]).await.unwrap();
         let teachers = rows
@@ -95,8 +98,6 @@ mod post_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        log::debug!("create teacher");
-
         if !teacher.check_valid(&regex) {
             return Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -112,22 +113,18 @@ mod post_services {
 
         let sql = if let Some(email) = email {
             format!(
-                "INSERT INTO {TEACHER_TABLE} (name, teacher_id, email) VALUES ('{}', '{}', '{}');",
-                name, teacher_id, email
+                "INSERT INTO {TEACHER_TABLE} (teacher_id, name, email) VALUES ($1, $2, '{email}');"
             )
         } else {
-            format!(
-                "INSERT INTO {TEACHER_TABLE} (name, teacher_id) VALUES ('{}', '{}');",
-                name, teacher_id
-            )
+            format!("INSERT INTO {TEACHER_TABLE} (teacher_id, name) VALUES ($1, $2);")
         };
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[]).await {
-            Ok(_) => Response::new("Student created".into()),
+        match client.execute(&stmt, &[&teacher_id, &name]).await {
+            Ok(_) => Response::new("Teacher registered".into()),
             Err(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Error creating student".into())
+                .body("Error registering teacher".into())
                 .unwrap(),
         }
     }
@@ -144,17 +141,14 @@ mod post_services {
             teacher_id, name, ..
         } = teacher.0;
 
-        let sql = format!(
-            "DELETE FROM {TEACHER_TABLE} WHERE teacher_id = '{}' AND name = '{}';",
-            teacher_id, name
-        );
+        let sql = format!("DELETE FROM {TEACHER_TABLE} WHERE teacher_id = $1 AND name = $2;");
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[]).await {
+        match client.execute(&stmt, &[&teacher_id, &name]).await {
             Ok(_) => Response::new("Teacher unregistered".into()),
             Err(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Internal error unregister teacher".into())
+                .body("Internal server error unregister teacher".into())
                 .unwrap(),
         }
     }
@@ -166,8 +160,7 @@ mod post_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        let filter_result = teachers.iter()
-            .all(|teacher| teacher.check_valid(&regex));
+        let filter_result = teachers.iter().all(|teacher| teacher.check_valid(&regex));
         if !filter_result {
             return Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -177,20 +170,22 @@ mod post_services {
 
         for teacher in teachers.iter() {
             let sql = if let Some(email) = &teacher.email {
-                format!(
-                    "INSERT INTO {TEACHER_TABLE} (name, teacher_id, email) VALUES ('{}', '{}', '{}');",
-                    teacher.name, teacher.teacher_id, email
-                )
+                format!("INSERT INTO {TEACHER_TABLE} (teacher_id, name, email) VALUES ($1, $2, '{email}');")
             } else {
-                format!(
-                    "INSERT INTO {TEACHER_TABLE} (name, teacher_id) VALUES ('{}', '{}');",
-                    teacher.name, teacher.teacher_id
-                )
+                format!("INSERT INTO {TEACHER_TABLE} (teacher_id, name) VALUES ($1, $2);")
             };
 
             let stmt = client.prepare(sql.as_str()).await.unwrap();
-            if client.execute(&stmt, &[]).await.is_err() {
-                log::error!("Error registering student: {}, {}", teacher.name, teacher.teacher_id);
+            if client
+                .execute(&stmt, &[&teacher.teacher_id, &teacher.name])
+                .await
+                .is_err()
+            {
+                log::error!(
+                    "Error registering student: {}, {}",
+                    teacher.teacher_id,
+                    teacher.name
+                );
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)

@@ -3,7 +3,10 @@ use axum::{
     Router,
 };
 
-use super::{JSON_REGISTER_ENDPOINT, LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{
+    JSON_REGISTER_ENDPOINT, LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT,
+    UNREGISTER_ENDPOINT,
+};
 
 pub fn get_student_router() -> Router {
     let query_api = get(get_services::get_student_by_id);
@@ -23,15 +26,15 @@ pub fn get_student_router() -> Router {
 mod get_services {
     use std::sync::Arc;
 
-    use crate::model::{QueryById, Student};
     use axum::{
         extract::Query,
         response::{IntoResponse, Response},
         Extension,
     };
     use deadpool_postgres::Pool;
-    use log::debug;
     use reqwest::StatusCode;
+
+    use crate::model::{QueryById, Student};
 
     use crate::api::STUDENT_TABLE;
 
@@ -41,19 +44,14 @@ mod get_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        debug!("get student by student_id");
-        let sql = format!(
-            "SELECT name FROM {STUDENT_TABLE} WHERE student_id = '{}';",
-            student_id.inner
-        );
+        log::debug!("get student by student_id");
+
+        let sql = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = $1;");
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.query_one(&stmt, &[]).await {
+        match client.query_one(&stmt, &[&student_id.inner]).await {
             Ok(row) => {
                 let name: String = row.get(0);
-                Response::builder()
-                    .status(StatusCode::OK)
-                    .body(name)
-                    .unwrap()
+                Response::new(name)
             }
             Err(_) => Response::builder()
                 .status(StatusCode::NOT_FOUND)
@@ -65,9 +63,9 @@ mod get_services {
     pub async fn list_all_students(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
         let client = pool.get().await.unwrap();
 
-        debug!("get all students");
+        log::debug!("get all students");
 
-        let sql = format!("SELECT name, student_id, email FROM {STUDENT_TABLE}");
+        let sql = format!("SELECT student_id, name, email FROM {STUDENT_TABLE}");
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         let rows = client.query(&stmt, &[]).await.unwrap();
         let students = rows
@@ -82,7 +80,7 @@ mod post_services {
     use std::sync::Arc;
 
     use axum::extract::Query;
-    use axum::http::Response;
+    use axum::response::Response;
     use axum::{Extension, Json};
     use deadpool_postgres::Pool;
     use reqwest::StatusCode;
@@ -99,13 +97,6 @@ mod post_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        log::debug!(
-            "register student {}, {}, {:?}",
-            student.name,
-            student.student_id,
-            student.email
-        );
-
         if !student.check_valid(&regex) {
             return Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -121,18 +112,14 @@ mod post_services {
 
         let sql = if let Some(email) = email {
             format!(
-                "INSERT INTO {STUDENT_TABLE} (name, student_id, email) VALUES ('{}', '{}', '{}');",
-                name, student_id, email
+                "INSERT INTO {STUDENT_TABLE} (student_id, name, email) VALUES ($1, $2, '{email}');"
             )
         } else {
-            format!(
-                "INSERT INTO {STUDENT_TABLE} (name, student_id) VALUES ('{}', '{}');",
-                name, student_id
-            )
+            format!("INSERT INTO {STUDENT_TABLE} (student_id, name) VALUES ($1, $2);")
         };
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[]).await {
+        match client.execute(&stmt, &[&student_id, &name]).await {
             Ok(_) => Response::new("Student registered".into()),
             Err(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -153,22 +140,19 @@ mod post_services {
             student_id, name, ..
         } = student.0;
 
-        let sql = format!(
-            "DELETE FROM {STUDENT_TABLE} WHERE student_id = '{}' AND name = '{}';",
-            student_id, name
-        );
+        let sql = format!("DELETE FROM {STUDENT_TABLE} WHERE student_id = $1 AND name = $2;");
 
         let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[]).await {
+        match client.execute(&stmt, &[&student_id, &name]).await {
             Ok(_) => Response::new("Student unregistered".into()),
             Err(_) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Error unregistering student".into())
+                .body("Internal server error unregister student".into())
                 .unwrap(),
         }
     }
 
-    // #[axum::debug_handler]
+    // register json requires efficient inserting like VALUES ('{}', '{}') (...) (...)
     pub async fn register_student_json(
         pool: Extension<Arc<Pool>>,
         regex: Extension<Arc<RegexManager>>,
@@ -176,9 +160,7 @@ mod post_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        let filter_result = students.iter()
-            .all(|student| student.check_valid(&regex));
-        
+        let filter_result = students.iter().all(|student| student.check_valid(&regex));
         if !filter_result {
             return Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -188,20 +170,22 @@ mod post_services {
 
         for student in students.iter() {
             let sql = if let Some(email) = &student.email {
-                format!(
-                    "INSERT INTO {STUDENT_TABLE} (name, student_id, email) VALUES ('{}', '{}', '{}');",
-                    student.name, student.student_id, email
-                )
+                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, email) VALUES ($1, $2, '{email}');")
             } else {
-                format!(
-                    "INSERT INTO {STUDENT_TABLE} (name, student_id) VALUES ('{}', '{}');",
-                    student.name, student.student_id
-                )
+                format!("INSERT INTO {STUDENT_TABLE} (student_id, name) VALUES ($1, $2);")
             };
 
             let stmt = client.prepare(sql.as_str()).await.unwrap();
-            if client.execute(&stmt, &[]).await.is_err() {
-                log::error!("Error registering student: {}, {}", student.name, student.student_id);
+            if client
+                .execute(&stmt, &[&student.student_id, &student.name])
+                .await
+                .is_err()
+            {
+                log::error!(
+                    "Error registering student: {}, {}",
+                    student.name,
+                    student.student_id
+                );
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
