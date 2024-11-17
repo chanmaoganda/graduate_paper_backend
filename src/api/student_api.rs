@@ -1,7 +1,9 @@
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
-use axum::{routing::{get, post}, Router};
-
-use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
 pub fn get_student_router() -> Router {
     let query_api = get(get_services::get_student_by_id);
@@ -19,10 +21,14 @@ mod get_services {
     use std::sync::Arc;
 
     use crate::model::{QueryById, Student};
-    use axum::{extract::Query, response::{IntoResponse, Response}, Extension};
+    use axum::{
+        extract::Query,
+        response::{IntoResponse, Response},
+        Extension,
+    };
     use deadpool_postgres::Pool;
-    use reqwest::StatusCode;
     use log::debug;
+    use reqwest::StatusCode;
 
     use crate::api::STUDENT_TABLE;
 
@@ -33,14 +39,23 @@ mod get_services {
         let client = pool.get().await.unwrap();
 
         debug!("get student by student_id");
-        let sql = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = '{}';",student_id.inner);
+        let sql = format!(
+            "SELECT name FROM {STUDENT_TABLE} WHERE student_id = '{}';",
+            student_id.inner
+        );
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.query_one(&stmt, &[]).await {
             Ok(row) => {
                 let name: String = row.get(0);
-                Response::builder().status(StatusCode::OK).body(name).unwrap()
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .body(name)
+                    .unwrap()
             }
-            Err(_) => Response::builder().status(StatusCode::NOT_FOUND).body("Student not found".into()).unwrap()
+            Err(_) => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body("Student not found".into())
+                .unwrap(),
         }
     }
 
@@ -81,10 +96,18 @@ mod post_services {
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
-        log::debug!("register student {}, {}, {:?}", student.name, student.student_id, student.email);
+        log::debug!(
+            "register student {}, {}, {:?}",
+            student.name,
+            student.student_id,
+            student.email
+        );
 
         if !student.check_valid(&regex) {
-            return Response::builder().status(StatusCode::BAD_REQUEST).body("Invalid id or email!".into()).unwrap();
+            return Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body("Invalid id or email!".into())
+                .unwrap();
         }
 
         let Student {
@@ -108,7 +131,10 @@ mod post_services {
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
             Ok(_) => Response::new("Student registered".into()),
-            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Error registering student".into()).unwrap()
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body("Error registering student".into())
+                .unwrap(),
         }
     }
 
@@ -132,7 +158,17 @@ mod post_services {
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
             Ok(_) => Response::new("Student unregistered".into()),
-            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Error unregistering student".into()).unwrap()
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body("Error unregistering student".into())
+                .unwrap(),
         }
+    }
+
+    pub async fn register_student_json(
+        students: axum::Json<Vec<Student>>,
+        pool: Extension<Arc<Pool>>,
+        regex: Extension<Arc<RegexManager>>,
+    ) {
     }
 }

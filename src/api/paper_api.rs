@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Router};
 use deadpool_postgres::Pool;
 
-
 use crate::model::{Paper, QueryById};
 
 use super::{LIST_ENDPOINT, PAPER_TABLE, QUERY_ID_ENDPOINT};
@@ -17,7 +16,10 @@ pub fn get_paper_router() -> Router {
         .route(LIST_ENDPOINT, list_api)
 }
 
-async fn get_paper_by_id(student_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> impl IntoResponse {
+async fn get_paper_by_id(
+    student_id: Query<QueryById>,
+    pool: Extension<Arc<Pool>>,
+) -> impl IntoResponse {
     let client = pool.get().await.unwrap();
 
     log::debug!("get paper by student_id");

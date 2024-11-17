@@ -19,7 +19,7 @@ fn get_addr_port() -> String {
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    
+
     let pool = postgres::build_pool().await.unwrap();
 
     let shared_pool = Arc::new(pool);
@@ -35,7 +35,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(get_addr_port())
         .await
         .unwrap();
-    
+
     log::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }

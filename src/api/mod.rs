@@ -30,7 +30,6 @@ pub fn registered_apis_router() -> Router {
         .nest("/login", login_router)
 }
 
-
 #[cfg(test)]
 mod api_tests {
     use reqwest::ClientBuilder;

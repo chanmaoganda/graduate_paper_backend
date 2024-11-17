@@ -1,6 +1,9 @@
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
-use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
 pub fn get_teacher_router() -> Router {
     let query_api = get(get_services::get_teacher_by_id);
@@ -45,7 +48,10 @@ mod get_services {
                 let name: String = row.get(0);
                 Response::new(name)
             }
-            Err(_) => Response::builder().status(StatusCode::NOT_FOUND).body("Teacher not found".into()).unwrap(),
+            Err(_) => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body("Teacher not found".into())
+                .unwrap(),
         }
     }
 
@@ -89,7 +95,10 @@ mod post_services {
         log::debug!("create teacher");
 
         if !teacher.check_valid(&regex) {
-            return Response::builder().status(StatusCode::BAD_REQUEST).body("Invalid email or password".into()).unwrap();
+            return Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body("Invalid email or password".into())
+                .unwrap();
         }
 
         let Teacher {
@@ -113,7 +122,10 @@ mod post_services {
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
             Ok(_) => Response::new("Student created".into()),
-            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Error creating student".into()).unwrap(),
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body("Error creating student".into())
+                .unwrap(),
         }
     }
 
@@ -137,7 +149,10 @@ mod post_services {
         let stmt = client.prepare(sql.as_str()).await.unwrap();
         match client.execute(&stmt, &[]).await {
             Ok(_) => Response::new("Teacher unregistered".into()),
-            Err(_) => Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body("Internal error unregister teacher".into()).unwrap(),
+            Err(_) => Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body("Internal error unregister teacher".into())
+                .unwrap(),
         }
     }
 }

@@ -25,7 +25,11 @@ impl Student {
     }
 
     pub fn check_valid(&self, regex: &axum::Extension<Arc<RegexManager>>) -> bool {
-        log::debug!("Checking if student ({}, {}) is valid", self.name, self.student_id);
+        log::debug!(
+            "Checking if student ({}, {}) is valid",
+            self.name,
+            self.student_id
+        );
 
         if !regex.is_valid_id(&self.student_id) {
             return false;

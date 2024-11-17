@@ -10,8 +10,7 @@ use super::{LIST_ENDPOINT, PAPER_TABLE, STUDENT_TABLE, TEACHER_TABLE};
 pub fn get_full_paper_router() -> Router {
     let list_api = get(list_all_full_paper);
 
-    Router::new()
-        .route(LIST_ENDPOINT, list_api)
+    Router::new().route(LIST_ENDPOINT, list_api)
 }
 
 async fn list_all_full_paper(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
