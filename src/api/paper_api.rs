@@ -1,37 +1,42 @@
-use actix_web::{web, HttpResponse, Responder};
+use std::sync::Arc;
+
+use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Router};
 use deadpool_postgres::Pool;
 
-use crate::model::Paper;
+
+use crate::model::{Paper, QueryById};
 
 use super::{LIST_ENDPOINT, PAPER_TABLE, QUERY_ID_ENDPOINT};
 
-pub fn get_paper_apis() -> actix_web::Scope {
-    let query_id_api = web::resource(QUERY_ID_ENDPOINT).route(web::get().to(get_paper_by_id));
-    let list_api = web::resource(LIST_ENDPOINT).route(web::get().to(list_all_paper));
+pub fn get_paper_router() -> Router {
+    let query_id_api = get(get_paper_by_id);
+    let list_api = get(list_all_paper);
 
-    web::scope("/paper").service(query_id_api).service(list_api)
+    Router::new()
+        .route(QUERY_ID_ENDPOINT, query_id_api)
+        .route(LIST_ENDPOINT, list_api)
 }
 
-async fn get_paper_by_id(student_id: web::Path<u32>, pool: web::Data<Pool>) -> impl Responder {
+async fn get_paper_by_id(student_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> impl IntoResponse {
     let client = pool.get().await.unwrap();
 
     log::debug!("get paper by student_id");
-    let student_id = student_id.into_inner();
+
     let sql = format!(
         "SELECT title FROM {PAPER_TABLE} WHERE student_id = '{}';",
-        student_id
+        student_id.inner
     );
     let stmt = client.prepare(sql.as_str()).await.unwrap();
     match client.query_one(&stmt, &[]).await {
         Ok(row) => {
             let name: String = row.get(0);
-            HttpResponse::Ok().json(name)
+            axum::Json(name)
         }
-        Err(_) => HttpResponse::NotFound().body("Paper not found"),
+        Err(_) => axum::Json("not found".to_string()),
     }
 }
 
-async fn list_all_paper(pool: web::Data<Pool>) -> impl Responder {
+async fn list_all_paper(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
     let client = pool.get().await.unwrap();
 
     log::debug!("get all paper");
@@ -42,5 +47,5 @@ async fn list_all_paper(pool: web::Data<Pool>) -> impl Responder {
         .into_iter()
         .map(Paper::from_row)
         .collect::<Vec<Paper>>();
-    web::Json(paper)
+    axum::Json(paper)
 }

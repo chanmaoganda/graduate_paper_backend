@@ -2,7 +2,7 @@ use axum::{routing::{get, post}, Router};
 
 use super::{QUERY_ID_ENDPOINT, LIST_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
-pub fn get_teacher_apis() -> Router {
+pub fn get_teacher_router() -> Router {
     let query_api = get(get_services::get_teacher_by_id);
     let list_api = get(get_services::list_all_teachers);
     let register_api = post(post_services::register_teacher);

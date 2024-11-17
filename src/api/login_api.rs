@@ -8,7 +8,7 @@ use crate::model::QueryById;
 
 use super::{STUDENT_TABLE, TEACHER_TABLE};
 
-pub fn get_login_api() -> Router {
+pub fn get_login_router() -> Router {
     let student_login_api = get(student_login);
     let teacher_login_api = get(teacher_login);
 

@@ -2,7 +2,7 @@ use axum::Router;
 
 // mod full_paper_api;
 mod login_api;
-// mod paper_api;
+mod paper_api;
 mod student_api;
 mod teacher_api;
 
@@ -11,20 +11,21 @@ const LIST_ENDPOINT: &str = "/list";
 const REGISTER_ENDPOINT: &str = "/register";
 const UNREGISTER_ENDPOINT: &str = "/unregister";
 
-// const PAPER_TABLE: &str = env!("PAPER_TABLE");
+const PAPER_TABLE: &str = env!("PAPER_TABLE");
 const STUDENT_TABLE: &str = env!("STUDENT_TABLE");
 const TEACHER_TABLE: &str = env!("TEACHER_TABLE");
 
 pub fn registered_apis_router() -> Router {
-    let student_router = student_api::get_student_apis();
-    let teacher_router = teacher_api::get_teacher_apis();
-    // let paper_scope = paper_api::get_paper_apis();
+    let student_router = student_api::get_student_router();
+    let teacher_router = teacher_api::get_teacher_router();
+    let paper_router = paper_api::get_paper_router();
     // let full_paper_scope = full_paper_api::get_full_paper_apis();
-    let login_router = login_api::get_login_api();
+    let login_router = login_api::get_login_router();
 
     Router::new()
         .nest("/student", student_router)
         .nest("/teacher", teacher_router)
+        .nest("/paper", paper_router)
         .nest("/login", login_router)
 }
 
