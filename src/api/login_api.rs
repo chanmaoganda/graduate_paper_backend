@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use axum::{extract::Query, response::Response, routing::get, Extension, Router};
+use axum::{response::Response, routing::get, Extension, Json, Router};
 use deadpool_postgres::Pool;
 use reqwest::StatusCode;
 
-use crate::model::QueryById;
+use crate::model::LoginUser;
 
 use super::{STUDENT_TABLE, TEACHER_TABLE};
 
@@ -17,26 +17,27 @@ pub fn get_login_router() -> Router {
         .route("/teacher", teacher_login_api)
 }
 
-async fn student_login(user_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> Response<String> {
-    base_login(user_id, STUDENT_TABLE, pool).await
+async fn student_login(pool: Extension<Arc<Pool>>, user: Json<LoginUser>) -> Response<String> {
+    base_login(STUDENT_TABLE, pool, user).await
 }
 
-async fn teacher_login(user_id: Query<QueryById>, pool: Extension<Arc<Pool>>) -> Response<String> {
-    base_login(user_id, TEACHER_TABLE, pool).await
+async fn teacher_login(pool: Extension<Arc<Pool>>, user: Json<LoginUser>) -> Response<String> {
+    base_login(TEACHER_TABLE, pool, user).await
 }
 
 async fn base_login(
-    user_id: Query<QueryById>,
     table_name: &str,
     pool: Extension<Arc<Pool>>,
+    user: Json<LoginUser>,
 ) -> Response<String> {
     let client = pool.get().await.unwrap();
 
-    let sql = format!(
-        "SELECT COUNT(1) FROM {table_name} WHERE {table_name}_id = '{}';",
-        user_id.inner
-    );
-    let row = client.query_one(&sql, &[]).await.unwrap();
+    let query =
+        format!("SELECT COUNT(1) FROM {table_name} WHERE {table_name}_id = $1 AND password = $2;");
+    let row = client
+        .query_one(&query, &[&user.id, &user.password])
+        .await
+        .unwrap();
 
     let count: i64 = row.get(0);
     if count != 1 {
@@ -45,7 +46,7 @@ async fn base_login(
             .body("Invalid username or password".into())
             .unwrap()
     } else {
-        let body = format!("{table_name} {} login successful", user_id.inner);
+        let body = format!("{table_name} {} login successful", user.id);
         Response::new(body)
     }
 }

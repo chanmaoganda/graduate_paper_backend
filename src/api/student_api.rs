@@ -3,23 +3,18 @@ use axum::{
     Router,
 };
 
-use super::{
-    JSON_REGISTER_ENDPOINT, LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT,
-    UNREGISTER_ENDPOINT,
-};
+use super::{LIST_ENDPOINT, QUERY_ID_ENDPOINT, REGISTER_ENDPOINT, UNREGISTER_ENDPOINT};
 
 pub fn get_student_router() -> Router {
     let query_api = get(get_services::get_student_by_id);
     let list_api = get(get_services::list_all_students);
     let register_api = post(post_services::register_student);
-    let json_register_api = post(post_services::register_student_json);
     let unregister_api = post(post_services::unregister_student);
 
     Router::new()
         .route(QUERY_ID_ENDPOINT, query_api)
         .route(LIST_ENDPOINT, list_api)
         .route(REGISTER_ENDPOINT, register_api)
-        .route(JSON_REGISTER_ENDPOINT, json_register_api)
         .route(UNREGISTER_ENDPOINT, unregister_api)
 }
 
@@ -39,15 +34,15 @@ mod get_services {
     use crate::api::STUDENT_TABLE;
 
     pub async fn get_student_by_id(
-        student_id: Query<QueryById>,
+        Query(student_id): Query<QueryById>,
         pool: Extension<Arc<Pool>>,
     ) -> Response<String> {
         let client = pool.get().await.unwrap();
 
         log::debug!("get student by student_id");
 
-        let sql = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = $1;");
-        let stmt = client.prepare(sql.as_str()).await.unwrap();
+        let query = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = $1;");
+        let stmt = client.prepare(&query).await.unwrap();
         match client.query_one(&stmt, &[&student_id.inner]).await {
             Ok(row) => {
                 let name: String = row.get(0);
@@ -65,8 +60,8 @@ mod get_services {
 
         log::debug!("get all students");
 
-        let sql = format!("SELECT student_id, name, email FROM {STUDENT_TABLE}");
-        let stmt = client.prepare(sql.as_str()).await.unwrap();
+        let query = format!("SELECT student_id, name, email FROM {STUDENT_TABLE}");
+        let stmt = client.prepare(&query).await.unwrap();
         let rows = client.query(&stmt, &[]).await.unwrap();
         let students = rows
             .into_iter()
@@ -79,7 +74,6 @@ mod get_services {
 mod post_services {
     use std::sync::Arc;
 
-    use axum::extract::Query;
     use axum::response::Response;
     use axum::{Extension, Json};
     use deadpool_postgres::Pool;
@@ -90,70 +84,8 @@ mod post_services {
 
     use crate::api::STUDENT_TABLE;
 
-    pub async fn register_student(
-        student: Query<Student>,
-        pool: Extension<Arc<Pool>>,
-        regex: Extension<Arc<RegexManager>>,
-    ) -> Response<String> {
-        let client = pool.get().await.unwrap();
-
-        if !student.check_valid(&regex) {
-            return Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body("Invalid id or email!".into())
-                .unwrap();
-        }
-
-        let Student {
-            student_id,
-            name,
-            email,
-        } = student.0;
-
-        let sql = if let Some(email) = email {
-            format!(
-                "INSERT INTO {STUDENT_TABLE} (student_id, name, email) VALUES ($1, $2, '{email}');"
-            )
-        } else {
-            format!("INSERT INTO {STUDENT_TABLE} (student_id, name) VALUES ($1, $2);")
-        };
-
-        let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[&student_id, &name]).await {
-            Ok(_) => Response::new("Student registered".into()),
-            Err(_) => Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Error registering student".into())
-                .unwrap(),
-        }
-    }
-
-    pub async fn unregister_student(
-        student: Query<Student>,
-        pool: Extension<Arc<Pool>>,
-    ) -> Response<String> {
-        let client = pool.get().await.unwrap();
-
-        log::debug!("unregister student");
-
-        let Student {
-            student_id, name, ..
-        } = student.0;
-
-        let sql = format!("DELETE FROM {STUDENT_TABLE} WHERE student_id = $1 AND name = $2;");
-
-        let stmt = client.prepare(sql.as_str()).await.unwrap();
-        match client.execute(&stmt, &[&student_id, &name]).await {
-            Ok(_) => Response::new("Student unregistered".into()),
-            Err(_) => Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body("Internal server error unregister student".into())
-                .unwrap(),
-        }
-    }
-
     // register json requires efficient inserting like VALUES ('{}', '{}') (...) (...)
-    pub async fn register_student_json(
+    pub async fn register_student(
         pool: Extension<Arc<Pool>>,
         regex: Extension<Arc<RegexManager>>,
         Json(students): Json<Vec<Student>>,
@@ -169,23 +101,26 @@ mod post_services {
         }
 
         for student in students.iter() {
-            let sql = if let Some(email) = &student.email {
-                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, email) VALUES ($1, $2, '{email}');")
+            let Student {
+                student_id,
+                name,
+                password,
+                email,
+            } = student;
+
+            let query = if let Some(email) = &email {
+                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, password, email) VALUES ($1, $2, $3, '{email}');")
             } else {
-                format!("INSERT INTO {STUDENT_TABLE} (student_id, name) VALUES ($1, $2);")
+                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, password) VALUES ($1, $2, $3);")
             };
 
-            let stmt = client.prepare(sql.as_str()).await.unwrap();
+            let stmt = client.prepare(&query).await.unwrap();
             if client
-                .execute(&stmt, &[&student.student_id, &student.name])
+                .execute(&stmt, &[&student_id, &name, &password])
                 .await
                 .is_err()
             {
-                log::error!(
-                    "Error registering student: {}, {}",
-                    student.name,
-                    student.student_id
-                );
+                log::error!("Error registering student: {}, {}", name, student_id);
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -195,5 +130,40 @@ mod post_services {
         }
 
         Response::new("Students registered".into())
+    }
+
+    pub async fn unregister_student(
+        pool: Extension<Arc<Pool>>,
+        Json(students): Json<Vec<Student>>,
+    ) -> Response<String> {
+        let client = pool.get().await.unwrap();
+
+        log::debug!("unregister student");
+
+        for student in students {
+            let Student {
+                student_id,
+                name,
+                password,
+                ..
+            } = student;
+
+            let query = format!("DELETE FROM {STUDENT_TABLE} WHERE student_id = $1 AND name = $2 AND password = $3;");
+
+            let stmt = client.prepare(&query).await.unwrap();
+            if client
+                .execute(&stmt, &[&student_id, &name, &password])
+                .await
+                .is_err()
+            {
+                log::error!("Error registering student: {}, {}", name, student_id);
+
+                return Response::builder()
+                    .status(StatusCode::INTERNAL_SERVER_ERROR)
+                    .body("Error registering student".into())
+                    .unwrap();
+            }
+        }
+        Response::new("Students unregistered".into())
     }
 }

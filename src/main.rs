@@ -25,8 +25,6 @@ async fn main() {
     let shared_pool = Arc::new(pool);
     let regex_manager = Arc::new(RegexManager::new());
 
-    // let external_router = Router::new().route("/api", get(api::get_api_list));
-
     let app = Router::new()
         .nest("/api", api::registered_apis_router())
         .layer(Extension(shared_pool))

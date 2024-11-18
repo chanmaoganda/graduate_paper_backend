@@ -9,6 +9,7 @@ use crate::manager::RegexManager;
 pub struct Student {
     pub name: String,
     pub student_id: String,
+    pub password: String,
     pub email: Option<String>,
 }
 
@@ -16,10 +17,12 @@ impl Student {
     pub fn from_row(row: Row) -> Self {
         let student_id = row.get(0);
         let name = row.get(1);
-        let email = row.get(2);
+        let password = row.get(2);
+        let email = row.get(3);
         Self {
             student_id,
             name,
+            password,
             email,
         }
     }

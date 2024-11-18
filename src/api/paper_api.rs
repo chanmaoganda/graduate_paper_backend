@@ -24,11 +24,11 @@ async fn get_paper_by_id(
 
     log::debug!("get paper by student_id");
 
-    let sql = format!(
+    let query = format!(
         "SELECT title FROM {PAPER_TABLE} WHERE student_id = '{}';",
         student_id.inner
     );
-    let stmt = client.prepare(sql.as_str()).await.unwrap();
+    let stmt = client.prepare(&query).await.unwrap();
     match client.query_one(&stmt, &[]).await {
         Ok(row) => {
             let name: String = row.get(0);
@@ -42,8 +42,8 @@ async fn list_all_paper(pool: Extension<Arc<Pool>>) -> impl IntoResponse {
     let client = pool.get().await.unwrap();
 
     log::debug!("get all paper");
-    let sql = format!("SELECT base_id, student_id, teacher_id, title FROM {PAPER_TABLE};");
-    let stmt = client.prepare(sql.as_str()).await.unwrap();
+    let query = format!("SELECT base_id, student_id, teacher_id, title FROM {PAPER_TABLE};");
+    let stmt = client.prepare(&query).await.unwrap();
     let rows = client.query(&stmt, &[]).await.unwrap();
     let paper = rows
         .into_iter()
