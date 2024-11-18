@@ -24,29 +24,28 @@ mod get_services {
     use axum::{
         extract::Query,
         response::{IntoResponse, Response},
-        Extension,
+        Extension, Json,
     };
     use deadpool_postgres::Pool;
     use reqwest::StatusCode;
 
-    use crate::model::{QueryById, Student};
+    use crate::model::{BasicUser, QueryById};
 
     use crate::api::STUDENT_TABLE;
 
     pub async fn get_student_by_id(
-        Query(student_id): Query<QueryById>,
+        Query(id): Query<QueryById>,
         pool: Extension<Arc<Pool>>,
-    ) -> Response<String> {
+    ) -> impl IntoResponse {
         let client = pool.get().await.unwrap();
 
-        log::debug!("get student by student_id");
+        log::debug!("get student by id");
 
-        let query = format!("SELECT name FROM {STUDENT_TABLE} WHERE student_id = $1;");
+        let query = format!("SELECT id, name, email FROM {STUDENT_TABLE} WHERE id = $1;");
         let stmt = client.prepare(&query).await.unwrap();
-        match client.query_one(&stmt, &[&student_id.inner]).await {
+        match client.query_one(&stmt, &[&id.inner]).await {
             Ok(row) => {
-                let name: String = row.get(0);
-                Response::new(name)
+                Json(BasicUser::from_row(row)).into_response()
             }
             Err(_) => Response::builder()
                 .status(StatusCode::NOT_FOUND)
@@ -60,13 +59,13 @@ mod get_services {
 
         log::debug!("get all students");
 
-        let query = format!("SELECT student_id, name, email FROM {STUDENT_TABLE}");
+        let query = format!("SELECT id, name, email FROM {STUDENT_TABLE}");
         let stmt = client.prepare(&query).await.unwrap();
         let rows = client.query(&stmt, &[]).await.unwrap();
         let students = rows
             .into_iter()
-            .map(Student::from_row)
-            .collect::<Vec<Student>>();
+            .map(BasicUser::from_row)
+            .collect::<Vec<BasicUser>>();
         axum::Json(students)
     }
 }
@@ -102,25 +101,25 @@ mod post_services {
 
         for student in students.iter() {
             let Student {
-                student_id,
+                id,
                 name,
                 password,
                 email,
             } = student;
 
             let query = if let Some(email) = &email {
-                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, password, email) VALUES ($1, $2, $3, '{email}');")
+                format!("INSERT INTO {STUDENT_TABLE} (id, name, password, email) VALUES ($1, $2, $3, '{email}');")
             } else {
-                format!("INSERT INTO {STUDENT_TABLE} (student_id, name, password) VALUES ($1, $2, $3);")
+                format!("INSERT INTO {STUDENT_TABLE} (id, name, password) VALUES ($1, $2, $3);")
             };
 
             let stmt = client.prepare(&query).await.unwrap();
             if client
-                .execute(&stmt, &[&student_id, &name, &password])
+                .execute(&stmt, &[&id, &name, &password])
                 .await
                 .is_err()
             {
-                log::error!("Error registering student: {}, {}", name, student_id);
+                log::error!("Error registering student: {}, {}", name, id);
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -142,21 +141,21 @@ mod post_services {
 
         for student in students {
             let Student {
-                student_id,
+                id,
                 name,
                 password,
                 ..
             } = student;
 
-            let query = format!("DELETE FROM {STUDENT_TABLE} WHERE student_id = $1 AND name = $2 AND password = $3;");
+            let query = format!("DELETE FROM {STUDENT_TABLE} WHERE id = $1 AND name = $2 AND password = $3;");
 
             let stmt = client.prepare(&query).await.unwrap();
             if client
-                .execute(&stmt, &[&student_id, &name, &password])
+                .execute(&stmt, &[&id, &name, &password])
                 .await
                 .is_err()
             {
-                log::error!("Error registering student: {}, {}", name, student_id);
+                log::error!("Error registering student: {}, {}", name, id);
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)

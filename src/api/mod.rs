@@ -34,7 +34,7 @@ pub fn registered_apis_router() -> Router {
 mod api_tests {
     use reqwest::ClientBuilder;
 
-    use crate::model::{Student, Teacher};
+    use crate::model::{LoginUser, Student, Teacher};
 
     #[tokio::test]
     async fn student_register_test() {
@@ -100,7 +100,7 @@ mod api_tests {
 
         let valid_student_ids = generate_valid_students()
             .into_iter()
-            .map(|s| s.student_id)
+            .map(|s| s.id)
             .collect::<Vec<String>>();
 
         for valid_student_id in valid_student_ids {
@@ -112,7 +112,7 @@ mod api_tests {
 
         let invalid_student_ids = generate_invalid_students()
             .into_iter()
-            .map(|s| s.student_id)
+            .map(|s| s.id)
             .collect::<Vec<String>>();
 
         for invalid_student_id in invalid_student_ids {
@@ -132,7 +132,7 @@ mod api_tests {
 
         let valid_teacher_ids = generate_valid_teachers()
             .into_iter()
-            .map(|t| t.teacher_id)
+            .map(|t| t.id)
             .collect::<Vec<String>>();
 
         for valid_teacher_id in valid_teacher_ids {
@@ -145,7 +145,7 @@ mod api_tests {
 
         let invalid_teacher_ids = generate_invalid_teachers()
             .into_iter()
-            .map(|t| t.teacher_id)
+            .map(|t| t.id)
             .collect::<Vec<String>>();
 
         for invalid_teacher_id in invalid_teacher_ids {
@@ -178,7 +178,9 @@ mod api_tests {
         let client = ClientBuilder::new().no_proxy().build().unwrap();
         let query_url = format!("{}/api/login/student", base_ip);
 
-        let valid_students = generate_valid_students();
+        let valid_students = generate_valid_students().into_iter()
+            .map(|student| student.into())
+            .collect::<Vec<LoginUser>>();
 
         for valid_student in valid_students {
             let response = client
@@ -197,7 +199,9 @@ mod api_tests {
         let client = ClientBuilder::new().no_proxy().build().unwrap();
         let query_url = format!("{}/api/login/teacher", base_ip);
 
-        let valid_teachers = generate_valid_teachers();
+        let valid_teachers = generate_valid_teachers().into_iter()
+            .map(|teacher| teacher.into())
+            .collect::<Vec<LoginUser>>();
 
         for valid_teacher in valid_teachers {
             let response = client
@@ -273,19 +277,19 @@ mod api_tests {
         vec![
             Student {
                 name: "avania".into(),
-                student_id: "3022244109".into(),
+                id: "3022244109".into(),
                 password: "avania_password".into(),
                 email: Some("avania@gmail.com".into()),
             },
             Student {
                 name: "john".into(),
-                student_id: "3022244110".into(),
+                id: "3022244110".into(),
                 password: "john_password".into(),
                 email: Some("john@gmail.com".into()),
             },
             Student {
                 name: "jane".into(),
-                student_id: "3022244111".into(),
+                id: "3022244111".into(),
                 password: "jane_password".into(),
                 email: Some("jane@gmail.com".into()),
             },
@@ -296,13 +300,13 @@ mod api_tests {
         vec![
             Student {
                 name: "avania".into(),
-                student_id: "3022244112".into(),
+                id: "3022244112".into(),
                 password: "avania_password".into(),
                 email: Some("avania".into()),
             },
             Student {
                 name: "john".into(),
-                student_id: "3022244".into(),
+                id: "3022244".into(),
                 password: "john_password".into(),
                 email: Some("john@gmail.com".into()),
             },
@@ -313,19 +317,19 @@ mod api_tests {
         vec![
             Teacher {
                 name: "micheal".into(),
-                teacher_id: "0000000001".into(),
+                id: "0000000001".into(),
                 password: "micheal_password".into(),
                 email: Some("micheal@tju.edu.cn".into()),
             },
             Teacher {
                 name: "smith".into(),
-                teacher_id: "0000000002".into(),
+                id: "0000000002".into(),
                 password: "smith_password".into(),
                 email: Some("smith@tju.edu.cn".into()),
             },
             Teacher {
                 name: "jenifer".into(),
-                teacher_id: "0000000003".into(),
+                id: "0000000003".into(),
                 password: "jenifer_password".into(),
                 email: Some("jenifer@tju.edu.cn".into()),
             },
@@ -336,13 +340,13 @@ mod api_tests {
         vec![
             Teacher {
                 name: "invalid".into(),
-                teacher_id: "0000000010".into(),
+                id: "0000000010".into(),
                 password: "invalid_password".into(),
                 email: Some("invalid.mail".into()),
             },
             Teacher {
                 name: "invalid".into(),
-                teacher_id: "00000000".into(),
+                id: "00000000".into(),
                 password: "invalid_password".into(),
                 email: Some("john@tju.edu.cn".into()),
             },

@@ -24,34 +24,33 @@ mod get_services {
     use axum::{
         extract::Query,
         response::{IntoResponse, Response},
-        Extension,
+        Extension, Json,
     };
     use deadpool_postgres::Pool;
     use reqwest::StatusCode;
 
-    use crate::model::{QueryById, Teacher};
+    use crate::model::{BasicUser, QueryById};
 
     use crate::api::TEACHER_TABLE;
 
     pub async fn get_teacher_by_id(
-        teacher_id: Query<QueryById>,
+        Query(id): Query<QueryById>,
         pool: Extension<Arc<Pool>>,
-    ) -> Response<String> {
+    ) -> impl IntoResponse {
         let client = pool.get().await.unwrap();
 
-        log::debug!("get teacher by teacher_id");
+        log::debug!("get teacher by id");
 
-        let query = format!("SELECT name FROM {TEACHER_TABLE} WHERE teacher_id = $1;");
+        let query = format!("SELECT id, name, email FROM {TEACHER_TABLE} WHERE id = $1;");
         let stmt = client.prepare(&query).await.unwrap();
-        match client.query_one(&stmt, &[&teacher_id.inner]).await {
+        match client.query_one(&stmt, &[&id.inner]).await {
             Ok(row) => {
-                let name: String = row.get(0);
-                Response::new(name)
+                Json(BasicUser::from_row(row)).into_response()
             }
             Err(_) => Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body("Teacher not found".into())
-                .unwrap(),
+               .status(StatusCode::NOT_FOUND)
+               .body("Teacher not found".into())
+               .unwrap(),
         }
     }
 
@@ -60,13 +59,13 @@ mod get_services {
 
         log::debug!("get all teachers");
 
-        let query = format!("SELECT teacher_id, name, email FROM {TEACHER_TABLE};");
+        let query = format!("SELECT id, name, email FROM {TEACHER_TABLE};");
         let stmt = client.prepare(&query).await.unwrap();
         let rows = client.query(&stmt, &[]).await.unwrap();
         let teachers = rows
             .into_iter()
-            .map(Teacher::from_row)
-            .collect::<Vec<Teacher>>();
+            .map(BasicUser::from_row)
+            .collect::<Vec<BasicUser>>();
         axum::Json(teachers)
     }
 }
@@ -101,25 +100,25 @@ mod post_services {
 
         for teacher in teachers.iter() {
             let Teacher {
-                teacher_id,
+                id,
                 name,
                 password,
                 ..
             } = teacher;
 
             let query = if let Some(email) = &teacher.email {
-                format!("INSERT INTO {TEACHER_TABLE} (teacher_id, name, password, email) VALUES ($1, $2, $3, '{email}');")
+                format!("INSERT INTO {TEACHER_TABLE} (id, name, password, email) VALUES ($1, $2, $3, '{email}');")
             } else {
-                format!("INSERT INTO {TEACHER_TABLE} (teacher_id, name, password) VALUES ($1, $2, $3);")
+                format!("INSERT INTO {TEACHER_TABLE} (id, name, password) VALUES ($1, $2, $3);")
             };
 
             let stmt = client.prepare(&query).await.unwrap();
             if client
-                .execute(&stmt, &[&teacher_id, &name, &password])
+                .execute(&stmt, &[&id, &name, &password])
                 .await
                 .is_err()
             {
-                log::error!("Error registering teacher: {}, {}", teacher_id, name);
+                log::error!("Error registering teacher: {}, {}", id, name);
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -142,21 +141,21 @@ mod post_services {
 
         for teacher in teachers {
             let Teacher {
-                teacher_id,
+                id,
                 name,
                 password,
                 ..
             } = teacher;
 
-            let query = format!("DELETE FROM {TEACHER_TABLE} WHERE teacher_id = $1 AND name = $2 AND password = $3;");
+            let query = format!("DELETE FROM {TEACHER_TABLE} WHERE id = $1 AND name = $2 AND password = $3;");
 
             let stmt = client.prepare(&query).await.unwrap();
             if client
-                .execute(&stmt, &[&teacher_id, &name, &password])
+                .execute(&stmt, &[&id, &name, &password])
                 .await
                 .is_err()
             {
-                log::error!("Error registering teacher: {}, {}", teacher_id, name);
+                log::error!("Error registering teacher: {}, {}", id, name);
 
                 return Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)

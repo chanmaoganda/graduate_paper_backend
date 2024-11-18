@@ -12,10 +12,10 @@ pub struct Paper {
 
 impl Paper {
     pub fn from_row(row: Row) -> Self {
-        let base_id = Some(row.get(0));
-        let student_id = row.get(1);
-        let teacher_id = row.get(2);
-        let title = row.get(3);
+        let base_id = Some(row.get("base_id"));
+        let student_id = row.get("student_id");
+        let teacher_id = row.get("teacher_id");
+        let title = row.get("title");
         Self {
             base_id,
             student_id,

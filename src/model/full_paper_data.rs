@@ -15,14 +15,14 @@ pub struct FullPaperData {
 
 impl FullPaperData {
     pub fn from_row(row: Row) -> Self {
-        let paper_base_id = Some(row.get(0));
-        let student_name = row.get(1);
-        let student_id = row.get(2);
-        let student_email = row.get(3);
-        let title = row.get(4);
-        let teacher_name = row.get(5);
-        let teacher_id = row.get(6);
-        let teacher_email = row.get(7);
+        let paper_base_id = Some(row.get("paper_base_id"));
+        let student_name = row.get("student_name");
+        let student_id = row.get("student_id");
+        let student_email = row.get("student_email");
+        let title = row.get("title");
+        let teacher_name = row.get("teacher_name");
+        let teacher_id = row.get("teacher_id");
+        let teacher_email = row.get("teacher_email");
 
         FullPaperData {
             paper_base_id,
