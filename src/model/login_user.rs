@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Student, Teacher};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginUser {
     pub id: String,
     pub password: String,

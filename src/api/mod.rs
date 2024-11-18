@@ -183,12 +183,15 @@ mod api_tests {
             .collect::<Vec<LoginUser>>();
 
         for valid_student in valid_students {
+            dbg!(&valid_student);
             let response = client
                 .get(&query_url)
-                .json(&[valid_student])
+                .json(&valid_student)
                 .send()
                 .await
                 .unwrap();
+            // dbg!(&response.text().await);
+
             assert_eq!(response.status(), 200);
         }
     }
@@ -206,7 +209,7 @@ mod api_tests {
         for valid_teacher in valid_teachers {
             let response = client
                 .get(&query_url)
-                .json(&[valid_teacher])
+                .json(&valid_teacher)
                 .send()
                 .await
                 .unwrap();

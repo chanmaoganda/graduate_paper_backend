@@ -33,7 +33,7 @@ async fn base_login(
     let client = pool.get().await.unwrap();
 
     let query =
-        format!("SELECT COUNT(1) FROM {table_name} WHERE {table_name}_id = $1 AND password = $2;");
+        format!("SELECT COUNT(1) FROM {table_name} WHERE id = $1 AND password = $2;");
     let row = client
         .query_one(&query, &[&user.id, &user.password])
         .await
